@@ -11,6 +11,7 @@ license = "GPL-3.0-or-later"
 lz4_flex = { version = "0.11", default-features = false, features = ["std"] }
 png = "0.17"
 fontdue = "0.9"
+encoding_rs = "0.8"
 pinyin = { version = "0.11", default-features = false, features = ["plain"] }
 libloading = "0.8"
 winit = "0.30"

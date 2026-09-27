@@ -1,7 +1,7 @@
 mod common;
 
 use common::tmp_root;
-use slot_store::scan;
+use slot_store::{scan, scan_fast};
 use tempfile::TempDir;
 
 /// `rel` is a path relative to `Games/`, e.g. `"GBA/Pokemon Emerald.gba"`.
@@ -33,6 +33,44 @@ fn a_png_in_labels_is_paired_to_its_rom_by_stem() {
         "a label in Labels/ was not picked up"
     );
     assert_eq!(carts[1].title, "POKEMON EMER");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_gb18030_filename_is_decoded_for_the_shelf() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let d = tmp_root();
+    let filename = OsString::from_vec(vec![
+        0xb1, 0xa6, 0xbf, 0xc9, 0xc3, 0xce, b'.', b'g', b'b', b'a',
+    ]);
+    let mut rom = vec![0u8; 0x100];
+    rom[0xa0..0xac].copy_from_slice(b"POKEMON     ");
+    std::fs::write(d.path().join("Games/GBA").join(filename), rom).expect("write rom");
+
+    let first = scan_fast(d.path()).unwrap();
+
+    assert_eq!(first.carts.len(), 1);
+    assert_eq!(first.carts[0].stem, "宝可梦");
+    assert!(scan_fast(d.path()).unwrap().from_cache);
+}
+
+#[test]
+fn a_utf8_filename_misread_as_latin1_is_recovered_for_the_shelf() {
+    let d = tmp_root();
+    let mojibake: String = "宝可梦"
+        .as_bytes()
+        .iter()
+        .copied()
+        .map(char::from)
+        .collect();
+    write_rom(&d, &format!("GBA/{mojibake}.gba"), "POKEMON");
+
+    let carts = scan(d.path()).unwrap();
+
+    assert_eq!(carts.len(), 1);
+    assert_eq!(carts[0].stem, "宝可梦");
 }
 
 #[test]

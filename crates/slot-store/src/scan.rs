@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -116,7 +117,14 @@ fn scan_fresh(root: &Path, history: &crate::PlayHistory) -> Result<Vec<Cart>, St
             if is_hidden(&rom) || !rom.is_file() || !is_rom(platform, &rom) {
                 continue;
             }
-            let Some(stem) = rom.file_stem().and_then(|s| s.to_str()).map(str::to_string) else {
+            let Some(name) = rom.file_name().and_then(decode_filename) else {
+                continue;
+            };
+            let Some(stem) = Path::new(&name)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(str::to_string)
+            else {
                 continue;
             };
             let label = root
@@ -148,9 +156,60 @@ fn is_rom(platform: Platform, path: &Path) -> bool {
     let expected = match platform {
         Platform::Gba => "gba",
     };
-    path.extension()
-        .and_then(|e| e.to_str())
+    path.file_name()
+        .and_then(decode_filename)
+        .and_then(|name| {
+            Path::new(&name)
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(str::to_string)
+        })
         .is_some_and(|ext| ext.eq_ignore_ascii_case(expected))
+}
+
+fn decode_filename(name: &OsStr) -> Option<String> {
+    let decoded = decode_filename_bytes(filename_bytes(name)?)?;
+    Some(recover_utf8_mojibake(&decoded).unwrap_or(decoded))
+}
+
+#[cfg(unix)]
+fn filename_bytes(name: &OsStr) -> Option<&[u8]> {
+    use std::os::unix::ffi::OsStrExt;
+
+    Some(name.as_bytes())
+}
+
+#[cfg(not(unix))]
+fn filename_bytes(name: &OsStr) -> Option<&[u8]> {
+    name.to_str().map(str::as_bytes)
+}
+
+fn decode_filename_bytes(bytes: &[u8]) -> Option<String> {
+    if let Ok(name) = std::str::from_utf8(bytes) {
+        return Some(name.to_string());
+    }
+    encoding_rs::GB18030
+        .decode_without_bom_handling_and_without_replacement(bytes)
+        .map(|name| name.into_owned())
+}
+
+fn recover_utf8_mojibake(name: &str) -> Option<String> {
+    if name.chars().any(is_cjk) {
+        return None;
+    }
+    let bytes: Option<Vec<u8>> = name.chars().map(|c| u8::try_from(c as u32).ok()).collect();
+    let recovered = String::from_utf8(bytes?).ok()?;
+    recovered.chars().any(is_cjk).then_some(recovered)
+}
+
+fn is_cjk(c: char) -> bool {
+    matches!(
+        c,
+        '\u{3400}'..='\u{4dbf}'
+            | '\u{4e00}'..='\u{9fff}'
+            | '\u{f900}'..='\u{faff}'
+            | '\u{20000}'..='\u{2fa1f}'
+    )
 }
 
 pub fn name_sort_key(stem: &str) -> NameSortKey {
