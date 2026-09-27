@@ -12,12 +12,12 @@ use slot_store::{
     FF_SPEEDS, RING_MAX, VOLUME_MAX,
 };
 use slot_ui::{
-    board_from, board_zoom, draw_backdrop, draw_empty_slot, draw_footer, draw_sticker, ease, grown,
-    lid_at, lid_from, lift_of, on_board, shelf_cart_at, ClockPicker, Draw, FfState, Hud, HudKind,
-    Icon, LinkBadge, Millis, Placed, Polaroids, PowerChoice, QuickMenu, QuickMenuFaces, QuickRow,
-    QuickValue, Refusal, Shelf, ShelfSort, SlotChrome, TexId, Toast, BOARD_W, BOARD_X, CART_W,
-    CHIP_H, CHIP_U, CHIP_V, CHIP_W, HINT_EDGE, HINT_H, HOP_LIFT, SHADOW_H, SHADOW_W, SOCKET_H,
-    SOCKET_U, SOCKET_V, SOCKET_W, TURN_PAD,
+    board_from, board_zoom, draw_backdrop, draw_empty_slot, draw_footer, draw_sticker, ease,
+    foot_y, grown, lid_at, lid_from, lift_of, on_board, shelf_cart_at, ClockPicker, Draw, FfState,
+    Hud, HudKind, Icon, LinkBadge, Millis, Placed, Polaroids, PowerChoice, QuickMenu,
+    QuickMenuFaces, QuickRow, QuickValue, Refusal, Shelf, ShelfSort, SlotChrome, TexId, Toast,
+    BOARD_W, BOARD_X, CART_H, CART_W, CHIP_H, CHIP_U, CHIP_V, CHIP_W, HINT_EDGE, HINT_H, HOP_LIFT,
+    SHADOW_H, SHADOW_W, SOCKET_H, SOCKET_U, SOCKET_V, SOCKET_W, TITLE_H, TITLE_W, TURN_PAD,
 };
 
 use crate::audio::Sfx;
@@ -564,6 +564,8 @@ pub struct App {
     wallpaper: Option<TexId>,
     /// What is printed on the case: the battery's percent, and the time as it stands.
     battery_percent: slot_ui::Printed,
+    /// The selected ROM filename, rasterised when the shelf highlight changes.
+    shelf_name_face: Option<TexId>,
     /// The charging glyph, uploaded once at boot with the other icons rather than whenever
     /// the percent changes: unlike the percent, its face never varies.
     bolt: Option<TexId>,
@@ -674,6 +676,7 @@ impl App {
             sticker_face: None,
             wallpaper: None,
             battery_percent: slot_ui::Printed::default(),
+            shelf_name_face: None,
             bolt: None,
             shelf_clock: slot_ui::Printed::default(),
             hud: Hud::new(),
@@ -875,6 +878,10 @@ impl App {
 
     pub fn set_battery_percent_face(&mut self, face: TexId, w: u32) {
         self.battery_percent = slot_ui::Printed::new(face, w);
+    }
+
+    pub fn set_shelf_name_face(&mut self, face: Option<TexId>) {
+        self.shelf_name_face = face;
     }
 
     pub fn set_shelf_clock_face(&mut self, face: TexId, w: u32) {
@@ -2284,6 +2291,18 @@ impl App {
                         draw_empty_slot(out);
                     }
                     _ => self.shelf().draw(self.shelf_shake(), out),
+                }
+                if self.core_picker_shown().is_none() {
+                    if let Some(tex) = self.shelf_name_face {
+                        out.push(Draw::Tex {
+                            x: (OUT_W - TITLE_W) as f32 / 2.0,
+                            y: foot_y(CART_H as f32) + 8.0,
+                            w: TITLE_W as f32,
+                            h: TITLE_H as f32,
+                            tex,
+                            alpha: 1.0,
+                        });
+                    }
                 }
                 draw_footer(
                     self.battery,

@@ -49,6 +49,9 @@ pub struct Frontend {
     polaroid_texes: Vec<TexId>,
     /// The top plate's line of type, re-rasterised whenever the selection moves.
     title_tex: Option<TexId>,
+    /// The selected shelf cart's ROM name and its reusable texture.
+    shelf_named: Option<String>,
+    shelf_name_tex: Option<TexId>,
     /// Builds the open cart's faces off the frame loop.
     faces: FaceBuilder,
     /// Builds the shelf faces after a cached first frame and filesystem reconciliation.
@@ -127,6 +130,8 @@ impl Frontend {
             draws: Vec::new(),
             polaroid_texes: Vec::new(),
             title_tex: None,
+            shelf_named: None,
+            shelf_name_tex: None,
             faces: FaceBuilder::spawn(),
             library_faces: LibraryFaceBuilder::spawn(),
             refreshed_library: None,
@@ -378,6 +383,12 @@ impl Frontend {
             compositor.upload_game(&frame);
         }
         sync_clock(self.session.app_mut(), compositor, &mut self.clocks);
+        sync_shelf_name(
+            self.session.app_mut(),
+            compositor,
+            &mut self.shelf_named,
+            &mut self.shelf_name_tex,
+        );
         sync_about(self.session.app_mut(), compositor, &mut self.about);
         sync_quick_clock(self.session.app_mut(), compositor, &mut self.quick_clock);
         sync_core_picker(
@@ -547,6 +558,21 @@ fn sync_switcher(app: &mut App, compositor: &mut Compositor, texes: Faces, state
         let id = upload(compositor, texes.title, face);
         app.set_polaroid_title_face(id);
     }
+}
+
+fn sync_shelf_name(
+    app: &mut App,
+    compositor: &mut Compositor,
+    shown: &mut Option<String>,
+    tex: &mut Option<TexId>,
+) {
+    let selected = app.selected_stem().map(str::to_string);
+    if selected == *shown {
+        return;
+    }
+    *shown = selected.clone();
+    let face = selected.map(|name| upload(compositor, tex, title_face(&name)));
+    app.set_shelf_name_face(face);
 }
 
 /// The picker is rasterised on every change under the caret, which is once per press. The
