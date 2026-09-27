@@ -114,8 +114,8 @@ impl LinkStep {
     /// a thing the player has to be told.
     pub fn line(self) -> &'static str {
         match self {
-            LinkStep::Radio => "Bringing the radio up",
-            LinkStep::Waiting => "Looking for the other player",
+            LinkStep::Radio => "正在启动无线网络",
+            LinkStep::Waiting => "正在寻找其他玩家",
         }
     }
 
@@ -164,10 +164,10 @@ impl LinkFail {
     /// overlay closes on it.
     pub fn line(self) -> &'static str {
         match self {
-            LinkFail::Radio => "The radio did not come up",
-            LinkFail::NobodyCame => "Nobody arrived",
-            LinkFail::PeerVanished => "The other player vanished",
-            LinkFail::Cancelled => "Cancelled",
+            LinkFail::Radio => "无线网络启动失败",
+            LinkFail::NobodyCame => "未发现其他玩家",
+            LinkFail::PeerVanished => "对方已断开",
+            LinkFail::Cancelled => "已取消",
         }
     }
 }
@@ -447,10 +447,7 @@ mod step_tests {
     #[test]
     fn a_warm_radio_captions_the_first_step_as_the_search() {
         assert_eq!(LinkStep::Radio.shown(true), LinkStep::Waiting);
-        assert_eq!(
-            LinkStep::Radio.shown(true).line(),
-            "Looking for the other player"
-        );
+        assert_eq!(LinkStep::Radio.shown(true).line(), "正在寻找其他玩家");
     }
 
     /// Cold, the load is still ahead of the player and the screen still says so: about 1.1 s of
@@ -458,7 +455,7 @@ mod step_tests {
     #[test]
     fn a_cold_radio_still_says_it_is_bringing_the_radio_up() {
         assert_eq!(LinkStep::Radio.shown(false), LinkStep::Radio);
-        assert_eq!(LinkStep::Radio.shown(false).line(), "Bringing the radio up");
+        assert_eq!(LinkStep::Radio.shown(false).line(), "正在启动无线网络");
     }
 
     /// The socket step never waited on the driver, so nothing about it changes either way.

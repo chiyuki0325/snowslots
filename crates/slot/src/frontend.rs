@@ -197,8 +197,8 @@ impl Frontend {
             .iter()
             .map(|c| {
                 let f = menu_face(match c {
-                    PowerChoice::Restart => "Restarting",
-                    PowerChoice::PowerOff => "Powering Down",
+                    PowerChoice::Restart => "正在重启",
+                    PowerChoice::PowerOff => "正在关机",
                 });
                 (compositor.create_texture(f.w, f.h, &f.rgba), f.w, f.h)
             })
@@ -263,9 +263,9 @@ impl Frontend {
         // Every action the picker takes, the way out first and the choice last, as the
         // switcher's legend is ordered.
         let legend = [
-            hint_face("B", "Cancel"),
-            arrows_hint_face("Swap"),
-            hint_face("A", "Choose"),
+            hint_face("B", "取消"),
+            arrows_hint_face("切换"),
+            hint_face("A", "选择"),
         ]
         .into_iter()
         .map(|f| (compositor.create_texture(f.w, f.h, &f.rgba), f.w))
@@ -278,18 +278,18 @@ impl Frontend {
         // a sentence.
         let roles = menu_faces(compositor, LinkRow::ALL.iter().map(|r| r.text()));
         self.session.app_mut().set_link_menu_faces(roles);
-        if let Some(linked) = menu_faces(compositor, ["Linked"].into_iter()).pop() {
+        if let Some(linked) = menu_faces(compositor, ["已联机"].into_iter()).pop() {
             self.session.app_mut().set_link_linked_face(linked);
         }
         // In `LinkLegend::ALL` order, which is how `App` finds each one.
         let legend = [
-            hint_face("B", "Cancel"),
-            hint_face("SELECT", "Mode"),
-            arrows_hint_face("Swap"),
-            hint_face("A", "Link"),
-            hint_face("A", "OK"),
-            hint_face("B", "Back"),
-            hint_face("A", "End Link"),
+            hint_face("B", "取消"),
+            hint_face("SELECT", "模式"),
+            arrows_hint_face("切换"),
+            hint_face("A", "联机"),
+            hint_face("A", "确定"),
+            hint_face("B", "返回"),
+            hint_face("A", "结束联机"),
         ]
         .into_iter()
         .map(|f| (compositor.create_texture(f.w, f.h, &f.rgba), f.w))

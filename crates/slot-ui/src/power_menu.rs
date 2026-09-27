@@ -27,8 +27,8 @@ impl PowerChoice {
 
     pub fn text(self) -> &'static str {
         match self {
-            PowerChoice::Restart => "Restart",
-            PowerChoice::PowerOff => "Power Off",
+            PowerChoice::Restart => "重启",
+            PowerChoice::PowerOff => "关机",
         }
     }
 }

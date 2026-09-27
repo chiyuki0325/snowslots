@@ -56,7 +56,7 @@ use slot_store::{Cart, Platform};
 use slot_ui::Shelf;
 
 fn shelf_of(names: &[&str]) -> Shelf {
-    Shelf::new(
+    let mut shelf = Shelf::new(
         names
             .iter()
             .map(|n| Cart {
@@ -69,7 +69,9 @@ fn shelf_of(names: &[&str]) -> Shelf {
                 last_launched: None,
             })
             .collect(),
-    )
+    );
+    shelf.cycle_sort(-1);
+    shelf
 }
 
 const ROW: [&str; 7] = [
@@ -88,9 +90,9 @@ fn down_crosses_to_the_next_letter() {
     let mut s = shelf_of(&ROW);
     assert_eq!(s.index, 0); // 1943, the digit stop
     s.jump_next_letter();
-    assert_eq!(s.carts[s.index].stem, "Apotris");
+    assert_eq!(s.carts[s.index].stem, "Advance Wars");
     s.jump_next_letter();
-    assert_eq!(s.carts[s.index].stem, "Metroid");
+    assert_eq!(s.carts[s.index].stem, "Mario Kart");
     s.jump_next_letter();
     assert_eq!(s.carts[s.index].stem, "Zelda");
 }
@@ -100,11 +102,14 @@ fn down_crosses_to_the_next_letter() {
 #[test]
 fn up_lands_on_the_start_of_the_letter_before_leaving_it() {
     let mut s = shelf_of(&ROW);
-    s.select(4); // Mario Kart, the second M
+    s.select(4); // Metroid, the second M
     s.jump_prev_letter();
-    assert_eq!(s.carts[s.index].stem, "Metroid", "it left the Ms too early");
+    assert_eq!(
+        s.carts[s.index].stem, "Mario Kart",
+        "it left the Ms too early"
+    );
     s.jump_prev_letter();
-    assert_eq!(s.carts[s.index].stem, "Apotris");
+    assert_eq!(s.carts[s.index].stem, "Advance Wars");
 }
 
 /// The row is a ring: the last letter's Down reaches the first, and the first letter's Up reaches
@@ -155,9 +160,9 @@ fn a_row_of_one_letter_stays_put() {
     let mut s = shelf_of(&["Metroid", "Mario Kart"]);
     s.jump_next_letter();
     assert_eq!(
-        s.carts[s.index].stem, "Metroid",
+        s.carts[s.index].stem, "Mario Kart",
         "it moved within one letter"
     );
     s.jump_prev_letter();
-    assert_eq!(s.carts[s.index].stem, "Metroid");
+    assert_eq!(s.carts[s.index].stem, "Mario Kart");
 }

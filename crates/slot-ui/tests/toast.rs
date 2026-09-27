@@ -2,14 +2,14 @@ use slot_ui::{toast_face, toast_rect, Draw, Hud, HudKind, Toast, OUT_W, PLATE_H}
 
 #[test]
 fn saving_and_loading_say_which_one_happened() {
-    assert_eq!(Toast::StateSaved.text(), "State Saved");
-    assert_eq!(Toast::StateLoaded.text(), "State Loaded");
+    assert_eq!(Toast::StateSaved.text(), "已保存状态");
+    assert_eq!(Toast::StateLoaded.text(), "已读取状态");
 }
 
 /// The link shortcut on a core that cannot link says which one can, in the same banner.
 #[test]
 fn the_link_shortcut_on_the_wrong_core_says_to_switch() {
-    assert_eq!(Toast::NeedsGpsp.text(), "Please switch to gpSP");
+    assert_eq!(Toast::NeedsGpsp.text(), "请切换至 gpSP");
     let f = toast_face(Toast::NeedsGpsp);
     assert!(f.rgba.chunks(4).any(|p| p[3] > 0), "the banner is blank");
 }
@@ -19,7 +19,7 @@ fn the_link_shortcut_on_the_wrong_core_says_to_switch() {
 /// that will never see a packet.
 #[test]
 fn a_cart_gpsp_cannot_link_says_there_is_no_link() {
-    assert_eq!(Toast::NoLink.text(), "No link support");
+    assert_eq!(Toast::NoLink.text(), "不支持联机");
     let f = toast_face(Toast::NoLink);
     assert!(f.rgba.chunks(4).any(|p| p[3] > 0), "the banner is blank");
 }

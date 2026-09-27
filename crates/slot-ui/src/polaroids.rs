@@ -32,7 +32,7 @@ const MARGIN: f32 = 16.0;
 /// Every action the switcher takes is on it: an unlabelled button is one nobody presses. The
 /// ways out of the switcher come first and the things done to the state on screen after, since
 /// that is the split the plate is laid out on.
-pub const LEGEND: [(&str, &str); 3] = [("B", "Back"), ("Y", "Delete"), ("A", "Load")];
+pub const LEGEND: [(&str, &str); 3] = [("B", "返回"), ("Y", "删除"), ("A", "读取")];
 /// How many of `hints` belong to the left end of the plate. The rest go to the right, the undo
 /// with them: undoing acts on the entry under the eye, as loading it does.
 const WAYS_OUT: usize = 2;
@@ -306,17 +306,24 @@ impl Polaroids {
         };
         let delta = parsed - then;
         if delta < 60 {
-            return "just now".into();
+            return "刚刚".into();
         }
         if delta < 3600 {
-            return format!("{} min ago", delta / 60);
+            return format!("{} 分钟前", delta / 60);
         }
         if delta < RELATIVE_WINDOW {
-            return format!("{} hr ago", delta / 3600);
+            return format!("{} 小时前", delta / 3600);
         }
         // Sliced rather than reformatted: `parse_stamp` accepted it, so the fields are where
         // the format says they are.
-        format!("{} {}:{}", &stamp[..10], &stamp[11..13], &stamp[14..16])
+        format!(
+            "{}年{}月{}日 {}:{}",
+            &stamp[..4],
+            &stamp[5..7],
+            &stamp[8..10],
+            &stamp[11..13],
+            &stamp[14..16]
+        )
     }
 }
 

@@ -5,20 +5,20 @@ fn recent_states_read_relative_and_old_ones_read_absolute() {
     let now = "2026-08-09_14-36-05";
     assert_eq!(
         Polaroids::relative_time("2026-08-09_14-32-05", now),
-        "4 min ago"
+        "4 分钟前"
     );
     assert_eq!(
         Polaroids::relative_time("2026-08-09_03-00-00", now),
-        "11 hr ago"
+        "11 小时前"
     );
     // Past twelve hours the relative form stops being useful and starts being vague.
     assert_eq!(
         Polaroids::relative_time("2026-08-08_20-00-00", now),
-        "2026-08-08 20:00"
+        "2026年08月08日 20:00"
     );
     assert_eq!(
         Polaroids::relative_time("2025-01-02_09-05-00", now),
-        "2025-01-02 09:05"
+        "2025年01月02日 09:05"
     );
 }
 

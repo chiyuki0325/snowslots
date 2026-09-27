@@ -345,13 +345,13 @@ fn legend_faces() -> Vec<(TexId, Face)> {
         .iter()
         .map(|k| {
             let f: Face = match k {
-                LinkLegend::Cancel => hint_face("B", "Cancel"),
-                LinkLegend::Mode => hint_face("SELECT", "Mode"),
-                LinkLegend::Swap => arrows_hint_face("Swap"),
-                LinkLegend::Link => hint_face("A", "Link"),
-                LinkLegend::Ok => hint_face("A", "OK"),
-                LinkLegend::Back => hint_face("B", "Back"),
-                LinkLegend::EndLink => hint_face("A", "End Link"),
+                LinkLegend::Cancel => hint_face("B", "取消"),
+                LinkLegend::Mode => hint_face("SELECT", "模式"),
+                LinkLegend::Swap => arrows_hint_face("切换"),
+                LinkLegend::Link => hint_face("A", "联机"),
+                LinkLegend::Ok => hint_face("A", "确定"),
+                LinkLegend::Back => hint_face("B", "返回"),
+                LinkLegend::EndLink => hint_face("A", "结束联机"),
             }
             .into();
             (TexId::from_raw(900 + k.index()), f)
@@ -447,7 +447,7 @@ fn the_connected_screen_shows_back_and_end_link() {
     assert!(ink(&px) > 0, "the connected screen drew no legend at all");
     assert_eq!(
         ink(&px),
-        cap_ink("B", "Back") + cap_ink("A", "End Link"),
+        cap_ink("B", "返回") + cap_ink("A", "结束联机"),
         "the row is not exactly a Back cap and an End Link cap"
     );
 }
@@ -567,7 +567,7 @@ fn a_cart_gpsp_can_link_reads_please_switch_to_gpsp() {
 /// The SELECT Mode cap alone, composited the same way, which is the exact amount of type the
 /// switchable screen should carry over the other one.
 fn mode_cap_ink() -> usize {
-    let f: Face = hint_face("SELECT", "Mode").into();
+    let f: Face = hint_face("SELECT", "模式").into();
     let (w, h) = (f.w as f32, f.h as f32);
     let tex = TexId::from_raw(1);
     let draw = Draw::Tex {

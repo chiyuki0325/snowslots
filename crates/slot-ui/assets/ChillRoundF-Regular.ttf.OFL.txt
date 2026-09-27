@@ -1,4 +1,8 @@
-Copyright 2020 The Open Sans Project Authors (https://github.com/googlefonts/opensans)
+ChillRoundF (寒蝉全圆体) Version 3.200
+Copyright holders identified by the font: Kosugi Maru, Justfont, Maoken, ChillType
+Copyright (C) 2010 MOTOYA CO., LTD.
+Designed by Warren2060 / ChillType, based on Kosugi Maru, jf open 粉圆,
+猫啃糖圆体, and Varela Round.
 
 -----------------------------------------------------------
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007

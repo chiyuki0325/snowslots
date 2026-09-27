@@ -65,46 +65,45 @@ pub struct StickerFields<'a> {
 }
 
 /// What the article gives ten lines of regulatory small print to. Set to the width of the
-/// column rather than to the sentence: the original's type is condensed and Open Sans is not,
+/// column rather than to the sentence: the original's type is condensed and ChillRoundF is not,
 /// so the same wording at the same size would run out from under the barcode panel.
 ///
 /// This is what README.md credits, in the space a label has for it.
 pub const CREDITS: [&str; 10] = [
-    "EMULATION POWERED BY MGBA",
-    "AND GPSP. AGS-102 IS A FORK OF",
-    "BASEOS BY PVAIBHAV. TYPE IS",
-    "OPEN SANS AND NERD FONTS",
-    "SYMBOLS BY RYAN L MCINTYRE.",
-    "THE PANEL MASK IS DERIVED",
-    "FROM GIGAHERZ'S LCD3X. THE",
-    "CART SOUNDS ARE MY CHILDHOOD",
-    "GAMEBOY. I WASTED WATER",
-    "BUILDING THIS WITH CLAUDE.",
+    "模拟由 mGBA 和 gpSP 驱动",
+    "AGS-102 基于 PVAIBHAV 的",
+    "BASEOS。字体采用寒蝉全圆体",
+    "与 NERD FONTS 符号字体。",
+    "符号由 RYAN L MCINTYRE 提供。",
+    "屏幕遮罩源自",
+    "GIGAHERZ 的 LCD3X。",
+    "卡带音效来自我童年的",
+    "GAME BOY。我与 CLAUDE",
+    "一起开发时浪费了不少水。",
 ];
 
 /// The article's own origin row, kept word for word. It is the one place the joke is funnier
 /// left alone than rewritten.
-pub const ORIGIN: [&str; 2] = ["S/LOT-USA", "MADE IN ITHACA"];
+pub const ORIGIN: [&str; 2] = ["S/LOT-USA", "伊萨卡制造"];
 
 /// The bottom right block, under the lockup. The copyright sign is a real glyph here; the
 /// article's circled M beside it is not, and is not true of this anyway.
 pub const COPYRIGHT: &str = "\u{a9} 2026 BRANDON T. KOWALSKI";
 
-pub const HOME: &str = "SEE README.";
+pub const HOME: &str = "详见 README。";
 
 /// The three headline rows: what the plate says about this unit. Only the gauge moves.
 pub fn head_rows(f: &StickerFields) -> [String; 3] {
     [
         // The next model number after the backlit SP, which is what this is pretending to be.
-        "MODEL NO. AGS-102".into(),
-        // The real symbol. No font here has it — Open Sans lacks it and the Nerd Font's
-        // nearest codepoint is a pair of squares — so the renderer draws it instead of asking
-        // for a glyph. It is a solid bar over three dashes and nothing more.
-        format!("INPUT : 5V{DC}1.5A"),
+        "型号：AGS-102".into(),
+        // The renderer draws the DC symbol instead of asking the label font for a glyph. It is
+        // a solid bar over three dashes and nothing more.
+        format!("输入：5V{DC}1.5A"),
         match f.battery {
-            Some(p) => format!("BATTERY : LI-ION ({p}%)"),
+            Some(p) => format!("电池：锂离子（{p}%）"),
             // The row stays: a label with a gap where a heading was reads as a rendering fault.
-            None => "BATTERY : LI-ION".to_string(),
+            None => "电池：锂离子".to_string(),
         },
     ]
 }

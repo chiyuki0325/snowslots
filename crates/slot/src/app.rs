@@ -257,8 +257,8 @@ impl LinkRow {
 
     pub fn text(self) -> &'static str {
         match self {
-            LinkRow::Host => "Host",
-            LinkRow::Join => "Join",
+            LinkRow::Host => "主机",
+            LinkRow::Join => "加入",
         }
     }
 
@@ -3924,8 +3924,8 @@ impl App {
             return None;
         }
         match self.pending.as_ref()?.0 {
-            PendingUndo::Save { .. } => Some("undo save"),
-            PendingUndo::Load { .. } => Some("undo load"),
+            PendingUndo::Save { .. } => Some("撤销保存"),
+            PendingUndo::Load { .. } => Some("撤销读取"),
         }
     }
 

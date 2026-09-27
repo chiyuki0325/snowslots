@@ -1429,13 +1429,13 @@ fn a_switch_is_refused_over_a_resume_the_core_would_not_take() {
 fn pick_names_cancel_mode_swap_and_link_across_the_strip() {
     let (mut app, _d) = playing_on(Core::Gpsp);
     let width = |k: LinkLegend| match k {
-        LinkLegend::Cancel => hint_face("B", "Cancel").w,
-        LinkLegend::Mode => hint_face("SELECT", "Mode").w,
-        LinkLegend::Swap => arrows_hint_face("Swap").w,
-        LinkLegend::Link => hint_face("A", "Link").w,
-        LinkLegend::Ok => hint_face("A", "OK").w,
-        LinkLegend::Back => hint_face("B", "Back").w,
-        LinkLegend::EndLink => hint_face("A", "End Link").w,
+        LinkLegend::Cancel => hint_face("B", "取消").w,
+        LinkLegend::Mode => hint_face("SELECT", "模式").w,
+        LinkLegend::Swap => arrows_hint_face("切换").w,
+        LinkLegend::Link => hint_face("A", "联机").w,
+        LinkLegend::Ok => hint_face("A", "确定").w,
+        LinkLegend::Back => hint_face("B", "返回").w,
+        LinkLegend::EndLink => hint_face("A", "结束联机").w,
     };
     let faces: Vec<(TexId, u32)> = LinkLegend::ALL
         .iter()

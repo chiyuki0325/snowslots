@@ -150,18 +150,11 @@ fn adapter_face() -> CartFace {
     let s = ADAPTER_SCALE;
     let rows: [LabelRow; 6] = [
         (0.0, -58.9, "SLOT", 5.6 * s, LOGO_INK, Align::Centre),
-        (
-            0.0,
-            -23.4,
-            "WIRELESS ADAPTER",
-            5.2 * s,
-            LABEL_INK,
-            Align::Centre,
-        ),
+        (0.0, -23.4, "无线适配器", 5.2 * s, LABEL_INK, Align::Centre),
         (
             -37.0,
             -15.8,
-            "RADIO : WLAN1 5GHZ   PORT : 7211",
+            "无线：WLAN1 5GHZ   端口：7211",
             3.4 * s,
             LABEL_INK,
             Align::Left,
@@ -169,19 +162,12 @@ fn adapter_face() -> CartFace {
         (
             -37.0,
             -11.8,
-            "MODEL NO. / MODELE NO. AGS-015",
+            "型号：AGS-015",
             3.4 * s,
             LABEL_INK,
             Align::Left,
         ),
-        (
-            -37.0,
-            -7.8,
-            "MADE IN ITHACA",
-            2.7 * s,
-            LABEL_INK,
-            Align::Left,
-        ),
+        (-37.0, -7.8, "伊萨卡制造", 2.7 * s, LABEL_INK, Align::Left),
         (
             37.0,
             -7.8,

@@ -95,12 +95,12 @@ fn the_rows_run_in_the_order_the_user_chose() {
     assert_eq!(
         labels,
         [
-            "Fast Forward",
-            "Fast Forward Sound",
-            "Colour Correction",
-            "Rumble",
-            "Date & Time",
-            "About"
+            "快速前进",
+            "快进声音",
+            "色彩校正",
+            "震动",
+            "日期与时间",
+            "关于"
         ]
     );
     let opens: Vec<QuickRow> = QuickRow::ALL.into_iter().filter(|r| r.opens()).collect();
@@ -111,18 +111,18 @@ fn the_rows_run_in_the_order_the_user_chose() {
 fn the_values_read_as_the_menu_prints_them() {
     assert_eq!(
         QuickValue::ALL.map(QuickValue::text),
-        ["2×", "3×", "4×", "6×", "On", "Off"]
+        ["2×", "3×", "4×", "6×", "开", "关"]
     );
     assert_eq!(QuickValue::flag(true), QuickValue::On);
     assert_eq!(QuickValue::flag(false), QuickValue::Off);
 }
 
-/// Ruling S1: the month by name, the day, and the time the way the carousel prints it.
+/// Ruling S1: the month, day, and time the way the carousel prints it.
 #[test]
 fn the_date_and_time_read_as_a_month_a_day_and_the_carousels_24_hour_clock() {
     let at = |stamp: &str| date_time_text(parse_stamp(stamp).expect("a stamp"));
-    assert_eq!(at("2026-09-15_16-35-00"), "SEP 15 16:35");
-    assert_eq!(at("2027-01-05_04-07-59"), "JAN 5 04:07");
+    assert_eq!(at("2026-09-15_16-35-00"), "9月15日 16:35");
+    assert_eq!(at("2027-01-05_04-07-59"), "1月5日 04:07");
 }
 
 /// Opened from the menu, the clock starts where it already is: the time on the wall, to the

@@ -52,22 +52,22 @@ impl Toast {
 
     pub fn text(self) -> &'static str {
         match self {
-            Toast::StateSaved => "State Saved",
-            Toast::StateLoaded => "State Loaded",
-            Toast::NeedsGpsp => "Please switch to gpSP",
-            Toast::NoLink => "No link support",
-            Toast::LinkEnded => "Link ended",
+            Toast::StateSaved => "已保存状态",
+            Toast::StateLoaded => "已读取状态",
+            Toast::NeedsGpsp => "请切换至 gpSP",
+            Toast::NoLink => "不支持联机",
+            Toast::LinkEnded => "联机已结束",
             // Passive, and deliberately so: on this device the link was ended by somebody else,
             // and "Link was ended" reads as something that happened to you rather than
             // something you did — which is the one distinction this end cannot see for itself.
             // Impersonal too, like every other line here ("No link support", "Nobody arrived");
             // the product says "friend" nowhere, so this is not the screen to start.
-            Toast::PeerEnded => "Link was ended",
-            Toast::ColourOn => "Correction On",
-            Toast::ColourOff => "Correction Off",
-            Toast::NameSort => "Name Sort",
-            Toast::RecentSort => "Recent Sort",
-            Toast::SystemSort => "System Sort",
+            Toast::PeerEnded => "对方结束了联机",
+            Toast::ColourOn => "色彩校正：开",
+            Toast::ColourOff => "色彩校正：关",
+            Toast::NameSort => "按名称排序",
+            Toast::RecentSort => "按最近启动排序",
+            Toast::SystemSort => "按机种排序",
         }
     }
 }

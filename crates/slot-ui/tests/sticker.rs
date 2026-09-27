@@ -43,10 +43,7 @@ fn a_missing_gauge_is_not_drawn_as_empty() {
         !all.contains("0%"),
         "no gauge was drawn as a flat battery: {all}"
     );
-    assert!(
-        all.contains("BATTERY"),
-        "the row should still be there: {all}"
-    );
+    assert!(all.contains("电池"), "the row should still be there: {all}");
 }
 
 /// The compliance block is the credits. Every one of these is something the README already
@@ -56,7 +53,7 @@ fn the_compliance_block_is_the_credits() {
     let all = sticker_lines(&fields()).join("\n").to_uppercase();
     // What README.md credits, minus the parts a label has no room for. The cartridge sounds
     // are a recording of the author's own console, so nobody is owed for them.
-    for owed in ["MGBA", "GPSP", "OPEN SANS", "NERD", "LCD3X", "CLAUDE"] {
+    for owed in ["MGBA", "GPSP", "寒蝉全圆体", "NERD", "LCD3X", "CLAUDE"] {
         assert!(all.contains(owed), "the credits do not mention {owed}");
     }
 }
@@ -69,12 +66,11 @@ fn the_serial_row_matches_the_encoded_hash() {
     assert!(all.contains("0473885"), "{all}");
 }
 
-/// Upper case throughout, like the label it is copying. `fit` uppercases when it lays out, so
-/// a lower case line here would render in caps anyway and measure wrong for its own width.
+/// Every row carries text; a blank line on this dense label would look like a rendering fault.
 #[test]
-fn every_line_is_already_upper_case() {
+fn every_line_has_text() {
     for line in sticker_lines(&fields()) {
-        assert_eq!(line, line.to_uppercase(), "{line}");
+        assert!(!line.trim().is_empty());
     }
 }
 

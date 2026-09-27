@@ -48,12 +48,12 @@ impl QuickRow {
 
     pub fn label(self) -> &'static str {
         match self {
-            QuickRow::FastForward => "Fast Forward",
-            QuickRow::FastForwardSound => "Fast Forward Sound",
-            QuickRow::ColourCorrection => "Colour Correction",
-            QuickRow::Rumble => "Rumble",
-            QuickRow::DateTime => "Date & Time",
-            QuickRow::About => "About",
+            QuickRow::FastForward => "快速前进",
+            QuickRow::FastForwardSound => "快进声音",
+            QuickRow::ColourCorrection => "色彩校正",
+            QuickRow::Rumble => "震动",
+            QuickRow::DateTime => "日期与时间",
+            QuickRow::About => "关于",
         }
     }
 
@@ -105,8 +105,8 @@ impl QuickValue {
             QuickValue::Speed3 => "3×",
             QuickValue::Speed4 => "4×",
             QuickValue::Speed6 => "6×",
-            QuickValue::On => "On",
-            QuickValue::Off => "Off",
+            QuickValue::On => "开",
+            QuickValue::Off => "关",
         }
     }
 
@@ -195,7 +195,7 @@ fn quick_text_face(label: &str, colour: [u8; 3]) -> UndoFace {
 }
 
 /// One of the arrows either side of the value in hand. From the symbols font, as the legend's
-/// arrow caps are: `label.ttf` has no arrows. The face is a line of menu type tall, with the
+/// arrow caps are: the label font has no arrows. The face is a line of menu type tall, with the
 /// arrow centred on the capitals so it sits on the value's line rather than the face's middle.
 pub fn quick_caret_face(right: bool) -> UndoFace {
     let glyph = if right { '\u{f0da}' } else { '\u{f0d9}' };
@@ -236,9 +236,9 @@ pub fn quick_caret_face(right: bool) -> UndoFace {
 /// B BACK, the arrows' CHANGE and A OPEN, in the order `QuickMenuFaces::legend` holds them.
 pub fn quick_legend_faces() -> [UndoFace; 3] {
     [
-        hint_face("B", "Back"),
-        arrows_hint_face("Change"),
-        hint_face("A", "Open"),
+        hint_face("B", "返回"),
+        arrows_hint_face("更改"),
+        hint_face("A", "打开"),
     ]
 }
 

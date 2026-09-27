@@ -41,7 +41,7 @@ const CARET_GAP: f32 = 6.0;
 const HINT_DROP: f32 = 48.0;
 
 const SET_CLOCK_KEY: &str = "A";
-const SET_CLOCK_LABEL: &str = "set the clock";
+const SET_CLOCK_LABEL: &str = "设置时间";
 
 /// Hours and minutes off a ring stamp. Never seconds: a clock showing them is a clock being
 /// watched rather than glanced at.
@@ -54,19 +54,11 @@ pub fn hhmm(secs: i64) -> String {
     format!("{:02}:{:02}", rem / 3600, rem / 60 % 60)
 }
 
-const MONTHS: [&str; 12] = [
-    "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
-];
-
-/// The quick menu's date and time: the month by name, the day, and the time the way the
-/// carousel prints it. No year and no seconds, since it is read at a glance rather than kept.
+/// The quick menu's date and time: the month, day, and time the way the carousel prints it.
+/// No year and no seconds, since it is read at a glance rather than kept.
 pub fn date_time_text(secs: i64) -> String {
     let (_, month, day) = civil_from_days(secs.div_euclid(DAY));
-    let name = MONTHS
-        .get((month - 1) as usize)
-        .copied()
-        .unwrap_or_default();
-    format!("{name} {day} {}", hhmm(secs))
+    format!("{month}月{day}日 {}", hhmm(secs))
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
