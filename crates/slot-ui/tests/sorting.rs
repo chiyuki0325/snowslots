@@ -25,21 +25,23 @@ fn chinese_names_file_with_their_plain_pinyin() {
 }
 
 #[test]
-fn sort_modes_cycle_both_ways_and_keep_the_selected_cart() {
+fn recent_is_the_default_and_sort_modes_keep_the_selected_cart() {
     let mut shelf = Shelf::new(vec![
         cart("Alpha", Some(10)),
         cart("Bravo", Some(30)),
         cart("Charlie", None),
     ]);
-    shelf.select(0);
 
-    assert_eq!(shelf.cycle_sort(1), ShelfSort::Recent);
+    assert_eq!(shelf.sort_mode(), ShelfSort::Recent);
     assert_eq!(stems(&shelf), ["Bravo", "Alpha", "Charlie"]);
-    assert_eq!(shelf.carts[shelf.index].stem, "Alpha");
+    shelf.select(1);
 
     assert_eq!(shelf.cycle_sort(1), ShelfSort::System);
     assert_eq!(stems(&shelf), ["Alpha", "Bravo", "Charlie"]);
-    assert_eq!(shelf.cycle_sort(-1), ShelfSort::Recent);
+    assert_eq!(shelf.carts[shelf.index].stem, "Alpha");
+
+    assert_eq!(shelf.cycle_sort(1), ShelfSort::Name);
+    assert_eq!(shelf.cycle_sort(-1), ShelfSort::System);
 }
 
 #[test]
@@ -48,8 +50,8 @@ fn faces_remain_attached_to_their_carts_after_a_reorder() {
     shelf.set_faces(vec![TexId::from_raw(1), TexId::from_raw(2)]);
     shelf.cycle_sort(1);
 
-    assert_eq!(shelf.find("Alpha").unwrap().1, Some(TexId::from_raw(1)));
-    assert_eq!(shelf.find("Bravo").unwrap().1, Some(TexId::from_raw(2)));
+    assert_eq!(shelf.find("Alpha").unwrap().1, Some(TexId::from_raw(2)));
+    assert_eq!(shelf.find("Bravo").unwrap().1, Some(TexId::from_raw(1)));
 }
 
 #[test]
@@ -61,7 +63,6 @@ fn recent_navigation_crosses_local_days_and_the_unplayed_group() {
         cart("Today morning", Some(2 * day + 100)),
         cart("Never", None),
     ]);
-    shelf.cycle_sort(1);
     assert_eq!(
         stems(&shelf),
         ["Today evening", "Today morning", "Old morning", "Never"]
@@ -79,7 +80,6 @@ fn recent_navigation_crosses_local_days_and_the_unplayed_group() {
 #[test]
 fn recording_a_launch_reorders_recent_without_losing_selection() {
     let mut shelf = Shelf::new(vec![cart("Alpha", Some(10)), cart("Bravo", Some(20))]);
-    shelf.cycle_sort(1);
     let alpha = shelf
         .carts
         .iter()
@@ -95,7 +95,7 @@ fn recording_a_launch_reorders_recent_without_losing_selection() {
 #[test]
 fn one_system_has_no_other_group_to_visit() {
     let mut shelf = Shelf::new(vec![cart("Alpha", None), cart("Bravo", None)]);
-    shelf.cycle_sort(-1);
+    shelf.cycle_sort(1);
     assert_eq!(shelf.sort_mode(), ShelfSort::System);
     shelf.jump_next_group(0);
     assert_eq!(shelf.index, 0);

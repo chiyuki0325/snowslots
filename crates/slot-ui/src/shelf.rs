@@ -109,17 +109,19 @@ pub struct Shelf {
 
 impl Shelf {
     pub fn new(carts: Vec<Cart>) -> Self {
-        Shelf {
+        let mut shelf = Shelf {
             carts,
             index: 0,
             scroll: 0.0,
-            sort: ShelfSort::Name,
+            sort: ShelfSort::Recent,
             faces: HashMap::new(),
             shadow: None,
             ride: 0.0,
             vel: 0.0,
             held: None,
-        }
+        };
+        shelf.sort_carts();
+        shelf
     }
 
     /// Put the row on a cart without a ride: the selection, where the row stands and where its

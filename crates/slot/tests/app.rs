@@ -1886,20 +1886,19 @@ fn shelf_triggers_cycle_sorting_and_name_the_mode() {
     let mut app = app_with_carts(&["Alpha", "Bravo"]);
 
     app.apply(Action::GbaDown(Btn::R2));
-    assert_eq!(app.shelf_sort(), ShelfSort::Recent);
-    assert_eq!(app.toast(), Some(Toast::RecentSort));
+    assert_eq!(app.shelf_sort(), ShelfSort::System);
+    assert_eq!(app.toast(), Some(Toast::SystemSort));
 
     app.apply(Action::GbaDown(Btn::L2));
-    assert_eq!(app.shelf_sort(), ShelfSort::Name);
-    assert_eq!(app.toast(), Some(Toast::NameSort));
+    assert_eq!(app.shelf_sort(), ShelfSort::Recent);
+    assert_eq!(app.toast(), Some(Toast::RecentSort));
 }
 
 #[test]
 fn shelf_shoulders_jump_groups_without_replacing_the_sort_toast() {
     let mut app = app_with_carts(&["Alpha", "Advance", "Bravo"]);
-    app.apply(Action::GbaDown(Btn::R2));
     app.apply(Action::GbaDown(Btn::L2));
-    assert_eq!(app.selected_stem(), Some("Alpha"));
+    assert_eq!(app.selected_stem(), Some("Advance"));
 
     app.apply(Action::GbaDown(Btn::R1));
     assert_eq!(app.selected_stem(), Some("Bravo"));
@@ -1916,6 +1915,6 @@ fn an_open_core_picker_owns_the_sort_shoulders() {
     app.apply(Action::GbaDown(Btn::Start));
     app.apply(Action::GbaDown(Btn::R2));
 
-    assert_eq!(app.shelf_sort(), ShelfSort::Name);
+    assert_eq!(app.shelf_sort(), ShelfSort::Recent);
     assert_eq!(app.toast(), None);
 }
