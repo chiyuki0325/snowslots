@@ -11,7 +11,9 @@ fn lock() -> std::sync::MutexGuard<'static, ()> {
 }
 
 fn dylib() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vendor/mgba_libretro.dylib")
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../vendor")
+        .join(format!("mgba_libretro.{}", std::env::consts::DLL_EXTENSION))
 }
 
 fn test_core() -> Option<LibretroCore> {

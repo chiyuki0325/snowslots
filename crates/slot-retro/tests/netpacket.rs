@@ -128,7 +128,9 @@ fn lock() -> std::sync::MutexGuard<'static, ()> {
 }
 
 fn mgba() -> Option<LibretroCore> {
-    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../vendor/mgba_libretro.dylib");
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../vendor")
+        .join(format!("mgba_libretro.{}", std::env::consts::DLL_EXTENSION));
     if !p.exists() {
         return None;
     }

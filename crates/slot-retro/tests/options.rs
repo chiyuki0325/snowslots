@@ -12,11 +12,7 @@ fn lock() -> MutexGuard<'static, ()> {
 fn dylib() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../vendor")
-        .join(if cfg!(target_os = "macos") {
-            "mgba_libretro.dylib"
-        } else {
-            "mgba_libretro.so"
-        })
+        .join(format!("mgba_libretro.{}", std::env::consts::DLL_EXTENSION))
 }
 
 #[test]

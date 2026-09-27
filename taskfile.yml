@@ -1,8 +1,15 @@
 version: '3'
 
 vars:
-  CORE: vendor/mgba_libretro.dylib
-  GPSP_HOST: vendor/gpsp_libretro.dylib
+  HOST_CORE_EXT:
+    sh: |
+      case "$(uname -s)" in
+        Darwin) echo dylib ;;
+        Linux) echo so ;;
+        *) echo "unsupported host $(uname -s)" >&2; exit 1 ;;
+      esac
+  CORE: vendor/mgba_libretro.{{.HOST_CORE_EXT}}
+  GPSP_HOST: vendor/gpsp_libretro.{{.HOST_CORE_EXT}}
   # mGBA is built rather than fetched: libretro/mgba at this commit, which is what the buildbot
   # was serving when issue #1 was found, with cores/mgba's patches on top. The buildbot builds
   # the same fork, and that fork lacks upstream's fix for the Classic NES Series audio
@@ -76,7 +83,7 @@ tasks:
 
   core:
     desc: >-
-      Build mGBA and fetch gpSP for this host. Both are reachable per game, so a host missing one
+      Prepare mGBA and gpSP for this host. Both are reachable per game, so a host missing one
       silently runs the mock instead - a rainbow test pattern and a sine tone, which reads as
       "that core is broken" rather than "that core is missing"
     cmds:
@@ -87,37 +94,79 @@ tasks:
     desc: Build mgba_libretro for this host from the pinned libretro/mgba commit and cores/mgba's patches
     # Built, not fetched: see MGBA_COMMIT above. The .meta beside the core is what `status`
     # compares, so a changed pin or patch rebuilds, and a buildbot core left in vendor/ from
-    # before (it has no .meta) is replaced rather than trusted.
+    # before (it has no .meta) is replaced rather than trusted. Linux arm64 shares the device
+    # core: its older glibc runs on the host too, and keeping one .so avoids two unlike binaries
+    # fighting over the platform's one conventional filename.
     status:
       - test -f {{.CORE}}
       - test "$(cat {{.CORE}}.meta 2>/dev/null)" = "$(sh cores/mgba/build.sh stamp {{.MGBA_COMMIT}})"
     cmds:
-      - sh cores/mgba/build.sh build {{.MGBA_COMMIT}} target/mgba {{.CORE}}
-      - file {{.CORE}} | grep -q Mach-O
-      - 'echo "built {{.CORE}}"'
+      - |
+        set -eu
+        case "$(uname -s)-$(uname -m)" in
+          Darwin-*)
+            sh cores/mgba/build.sh build {{.MGBA_COMMIT}} target/mgba {{.CORE}}
+            file {{.CORE}} | grep -q Mach-O
+            ;;
+          Linux-aarch64)
+            task core:device
+            ;;
+          *)
+            echo "unsupported host $(uname -s)-$(uname -m)" >&2
+            exit 1
+            ;;
+        esac
+        echo "built {{.CORE}}"
 
   core:gpsp:host:
-    desc: Fetch the host gpSP core from the libretro buildbot
-    # No source archive alongside it, unlike core:gpsp. That task ships its binary to a
-    # device, which is what makes GPL-2.0 section 3(a) apply; this one lands in vendor/,
-    # which is gitignored and never leaves the machine that fetched it.
+    desc: Fetch gpSP on macOS or build the shared host/device core on Linux arm64
+    # macOS keeps the buildbot core local to this machine. Linux arm64 uses the pinned source
+    # archive and device recipe: the glibc 2.31 result runs on this newer host and is also the
+    # exact core dist:device ships, so vendor/ never holds two meanings for the same .so name.
     status:
-      - test -f {{.GPSP_HOST}}
+      - |
+        case "$(uname -s)-$(uname -m)" in
+          Darwin-*)
+            test -f {{.GPSP_HOST}}
+            ;;
+          Linux-aarch64)
+            test -f {{.GPSP_HOST}} &&
+            test -f vendor/gpsp-src.tar.gz &&
+            test "$(cat vendor/gpsp-src.sha 2>/dev/null)" = "{{.GPSP_COMMIT}}" &&
+            test "$(cat {{.GPSP_HOST}}.meta 2>/dev/null)" = "$(sh cores/gpsp/build.sh stamp {{.GPSP_COMMIT}})" &&
+            test "$(cat vendor/gpsp-src.meta 2>/dev/null)" = "$(sh cores/gpsp/build.sh stamp {{.GPSP_COMMIT}})"
+            ;;
+          *)
+            exit 1
+            ;;
+        esac
     cmds:
       - |
-        set -euo pipefail
-        case "$(uname -m)" in
-          arm64)  arch=arm64 ;;
-          x86_64) arch=x86_64 ;;
-          *) echo "unsupported arch $(uname -m)" >&2; exit 1 ;;
+        set -eu
+        case "$(uname -s)-$(uname -m)" in
+          Darwin-*)
+            case "$(uname -m)" in
+              arm64)  arch=arm64 ;;
+              x86_64) arch=x86_64 ;;
+              *) echo "unsupported arch $(uname -m)" >&2; exit 1 ;;
+            esac
+            mkdir -p vendor
+            curl -fsSL -o vendor/gpsp-host.zip \
+              "https://buildbot.libretro.com/nightly/apple/osx/${arch}/latest/gpsp_libretro.dylib.zip"
+            unzip -o -q vendor/gpsp-host.zip -d vendor
+            rm -f vendor/gpsp-host.zip
+            file {{.GPSP_HOST}} | grep -q Mach-O
+            echo "fetched {{.GPSP_HOST}}"
+            ;;
+          Linux-aarch64)
+            task core:gpsp
+            echo "built {{.GPSP_HOST}}"
+            ;;
+          *)
+            echo "unsupported host $(uname -s)-$(uname -m)" >&2
+            exit 1
+            ;;
         esac
-        mkdir -p vendor
-        curl -fsSL -o vendor/gpsp-host.zip \
-          "https://buildbot.libretro.com/nightly/apple/osx/${arch}/latest/gpsp_libretro.dylib.zip"
-        unzip -o -q vendor/gpsp-host.zip -d vendor
-        rm -f vendor/gpsp-host.zip
-        file {{.GPSP_HOST}} | grep -q Mach-O
-        echo "fetched {{.GPSP_HOST}}"
 
   core:update:
     desc: Rebuild mGBA and re-fetch gpSP for this host even if they are already vendored
@@ -242,7 +291,9 @@ tasks:
           "https://github.com/libretro/gpsp/archive/{{.GPSP_COMMIT}}.tar.gz"
         # A real gpSP checkout, not just a valid tarball: same shape as any GitHub source
         # archive, one top directory named for the commit, and the Makefile lives in it.
-        tar -tzf vendor/gpsp-src.tar.gz | grep -q "^gpsp-{{.GPSP_COMMIT}}/Makefile$"
+        # Do not use grep -q here: with pipefail it exits at the first match, gives tar SIGPIPE,
+        # and turns a valid archive into status 141.
+        tar -tzf vendor/gpsp-src.tar.gz | grep "^gpsp-{{.GPSP_COMMIT}}/Makefile$" >/dev/null
       # Built from exactly that archive, in the box the device build uses, so the core links
       # against the same glibc 2.31 as slot. cores/gpsp/build.sh has the recipe and the flags.
       - task: device:sh
@@ -276,28 +327,42 @@ tasks:
       - sh cores/gpsp/test/run.sh vendor/gpsp-src.tar.gz
 
   device:sh:
-    desc: Run CMD on the box the device build wants, fetching one if this is not it
+    desc: Run CMD in the device build environment, or natively with SLOT_DEVICE_NATIVE=1
     internal: true
     requires:
       vars: [CMD]
     cmds:
       - |
         set -eu
-        # Already standing on the target means the container would only be in the way, and in
-        # CI there is no docker to reach for anyway: the job is already running in this image.
-        #
         # Bullseye is glibc 2.31 on purpose: older is forward compatible, and BaseOS is 2.35.
-        # Building against 2.35 and running on anything older would not be. Off target,
-        # OrbStack runs arm64 natively, so that is still a native build in a container rather
-        # than a cross compile.
-        if [ "$(uname -s)-$(uname -m)" = "Linux-aarch64" ]; then
+        # A developer's arm64 Linux can be newer too, so architecture alone does not prove that
+        # it is safe to link there. Native execution is reserved for the target or CI image that
+        # explicitly opts in; every ordinary host gets the same arm64 Bullseye container.
+        if [ "${SLOT_DEVICE_NATIVE:-0}" = "1" ]; then
+          if [ "$(uname -s)-$(uname -m)" != "Linux-aarch64" ]; then
+            echo "SLOT_DEVICE_NATIVE=1 needs Linux-aarch64" >&2
+            exit 1
+          fi
           sh -c '{{.CMD}}'
         else
-          docker run --rm -v "$PWD":/src -w /src rust:1-bullseye sh -c '{{.CMD}}'
+          # mGBA installs CMake in the disposable Bullseye image, which needs root there. Hand
+          # every bind-mounted output back to the invoking user before the container exits, so
+          # the privilege inside the box never leaves an unwritable build tree on the host.
+          docker run --rm --platform linux/arm64 \
+            -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+            -v "$PWD":/src -w /src rust:1-bullseye sh -c '
+              git config --global --add safe.directory /src
+              {{.CMD}}
+              status=$?
+              for path in target-device vendor dist-device; do
+                [ ! -e "$path" ] || chown -R "$HOST_UID:$HOST_GID" "$path"
+              done
+              exit "$status"
+            '
         fi
 
   build:device:
-    desc: Build for the H700, in an arm64 container unless this is already one
+    desc: Build for the H700 in an arm64 Bullseye container unless SLOT_DEVICE_NATIVE=1
     cmds:
       # Relative paths only: they have to mean the same thing from the repo root and from /src.
       # The `device` profile is release plus fat LTO (see Cargo.toml's note on it), and a

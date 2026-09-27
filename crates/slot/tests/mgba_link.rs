@@ -1,6 +1,6 @@
 //! mGBA's link mode: two GBAs from one game, joined by mGBA's own lockstep link cable, stepped
 //! together on one thread, with only the local player's GBA shown. Real core only: every test
-//! skips when `vendor/mgba_libretro.dylib` is absent, and fails with a rebuild hint when the
+//! skips when the platform's `vendor/mgba_libretro` dynamic library is absent, and fails with a
 //! vendored core predates link mode.
 
 mod common;

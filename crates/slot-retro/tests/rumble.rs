@@ -8,7 +8,9 @@ const STRONG: u32 = 0;
 const WEAK: u32 = 1;
 
 fn test_core() -> Option<LibretroCore> {
-    let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vendor/mgba_libretro.dylib");
+    let p = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../vendor")
+        .join(format!("mgba_libretro.{}", std::env::consts::DLL_EXTENSION));
     if !p.exists() {
         return None;
     }

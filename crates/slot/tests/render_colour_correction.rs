@@ -186,7 +186,13 @@ fn the_cards_setting_reaches_the_core_through_the_session() {
         };
         // The content root's own `System/` is the first place `candidates` looks, which is how
         // a test plants a core somewhere the real search will find it.
-        std::fs::copy(&dylib, d.path().join("System/mgba_libretro.dylib")).expect("plant a core");
+        std::fs::copy(
+            &dylib,
+            d.path()
+                .join("System")
+                .join(format!("mgba_libretro.{}", std::env::consts::DLL_EXTENSION)),
+        )
+        .expect("plant a core");
         let state = SlotState {
             clock_set: true,
             colour_correction: colour,
