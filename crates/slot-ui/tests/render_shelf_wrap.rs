@@ -12,7 +12,7 @@
 //! the only identity on the row, and they are what says which cart moved where.
 
 use slot_gfx::{Draw, OUT_H, OUT_W};
-use slot_store::Cart;
+use slot_store::{Cart, Platform};
 use slot_ui::Shelf;
 
 const SHRINK: usize = 3;
@@ -27,10 +27,12 @@ fn shelf_with(n: usize) -> Shelf {
         (0..n)
             .map(|i| Cart {
                 stem: format!("Game {i}"),
+                platform: Platform::Gba,
                 rom: format!("Games/GBA/Game {i}.gba").into(),
                 label: None,
                 code: String::new(),
                 title: format!("GAME {i}"),
+                last_launched: None,
             })
             .collect(),
     )

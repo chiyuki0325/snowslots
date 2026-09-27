@@ -10,11 +10,11 @@ use slot::emu::{EmuHandle, Speed};
 use slot::session::Session;
 use slot_input::{Action, Btn, RawEvent};
 use slot_retro::ButtonMask;
-use slot_store::{write_slot_state, Cart, Core, SlotState};
+use slot_store::{write_slot_state, Cart, Core, Platform, SlotState};
 use slot_ui::{
-    board_at, grown, lid_at, lid_from, on_board, opening, shelf_cart_at, Draw, Icon, Placed, TexId,
-    BOARD_W, CART_W, CHIP_H, CHIP_U, CHIP_V, CHIP_W, HINT_EDGE, HINT_H, LID_TURN, SLIDE_UP,
-    SOCKET_H, SOCKET_U, SOCKET_V, SOCKET_W, TURN_PAD,
+    board_at, grown, lid_at, lid_from, on_board, opening, shelf_cart_at, Draw, Icon, Placed,
+    ShelfSort, TexId, Toast, BOARD_W, CART_W, CHIP_H, CHIP_U, CHIP_V, CHIP_W, HINT_EDGE, HINT_H,
+    LID_TURN, SLIDE_UP, SOCKET_H, SOCKET_U, SOCKET_V, SOCKET_W, TURN_PAD,
 };
 
 /// A tap of A, which is what plays a cart. The press alone is not enough: held, it means
@@ -30,10 +30,12 @@ fn app_with_carts(stems: &[&str]) -> App {
             .iter()
             .map(|stem| Cart {
                 stem: (*stem).to_string(),
+                platform: Platform::Gba,
                 rom: format!("Games/GBA/{stem}.gba").into(),
                 label: None,
                 code: String::new(),
                 title: stem.to_uppercase(),
+                last_launched: None,
             })
             .collect(),
     )
@@ -1877,4 +1879,43 @@ fn the_colour_shortcut_names_the_state_it_arrived_at() {
             "the banner named the state the toggle left, not the one it reached"
         );
     }
+}
+
+#[test]
+fn shelf_triggers_cycle_sorting_and_name_the_mode() {
+    let mut app = app_with_carts(&["Alpha", "Bravo"]);
+
+    app.apply(Action::GbaDown(Btn::R2));
+    assert_eq!(app.shelf_sort(), ShelfSort::Recent);
+    assert_eq!(app.toast(), Some(Toast::RecentSort));
+
+    app.apply(Action::GbaDown(Btn::L2));
+    assert_eq!(app.shelf_sort(), ShelfSort::Name);
+    assert_eq!(app.toast(), Some(Toast::NameSort));
+}
+
+#[test]
+fn shelf_shoulders_jump_groups_without_replacing_the_sort_toast() {
+    let mut app = app_with_carts(&["Alpha", "Advance", "Bravo"]);
+    app.apply(Action::GbaDown(Btn::R2));
+    app.apply(Action::GbaDown(Btn::L2));
+    assert_eq!(app.selected_stem(), Some("Alpha"));
+
+    app.apply(Action::GbaDown(Btn::R1));
+    assert_eq!(app.selected_stem(), Some("Bravo"));
+    assert_eq!(app.toast(), Some(Toast::NameSort));
+
+    app.apply(Action::GbaDown(Btn::L1));
+    assert_eq!(app.selected_stem(), Some("Advance"));
+}
+
+#[test]
+fn an_open_core_picker_owns_the_sort_shoulders() {
+    let root = common::tmp_root_with_carts(&["Alpha", "Bravo"]);
+    let mut app = common::boot(root.path());
+    app.apply(Action::GbaDown(Btn::Start));
+    app.apply(Action::GbaDown(Btn::R2));
+
+    assert_eq!(app.shelf_sort(), ShelfSort::Name);
+    assert_eq!(app.toast(), None);
 }

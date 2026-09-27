@@ -176,8 +176,8 @@ fn menu_hold_released_early_ejects_nothing() {
 #[test]
 fn r2_hold_is_momentary() {
     let mut g = Gestures::new();
-    assert_eq!(g.feed(Down(R2), 0), vec![FfStart]);
-    assert_eq!(g.feed(Up(R2), 900), vec![FfStop]);
+    assert_eq!(g.feed(Down(R2), 0), vec![GbaDown(R2), FfStart]);
+    assert_eq!(g.feed(Up(R2), 900), vec![GbaUp(R2), FfStop]);
 }
 
 #[test]
@@ -186,9 +186,9 @@ fn r2_double_tap_latches_and_single_press_clears() {
     g.feed(Down(R2), 0);
     g.feed(Up(R2), 50); // tap 1
     g.feed(Down(R2), 100);
-    assert!(g.feed(Up(R2), 150).is_empty()); // latched, FF stays on
-    g.feed(Down(R2), 5000);
-    assert_eq!(g.feed(Up(R2), 5050), vec![FfStop]);
+    assert_eq!(g.feed(Up(R2), 150), vec![GbaUp(R2)]); // latched, FF stays on
+    assert_eq!(g.feed(Down(R2), 5000), vec![GbaDown(R2)]);
+    assert_eq!(g.feed(Up(R2), 5050), vec![GbaUp(R2), FfStop]);
 }
 
 /// The flush hangs off the press, because a button being held may be cut by the PMIC before
@@ -233,19 +233,20 @@ fn a_press_just_short_of_the_threshold_is_a_lock() {
 #[test]
 fn a_press_the_rewind_turned_away_is_not_half_of_a_latch() {
     let mut g = Gestures::new();
-    assert_eq!(g.feed(Down(L2), 0), vec![RewindStart]);
-    assert!(
-        g.feed(Down(R2), 50).is_empty(),
+    assert_eq!(g.feed(Down(L2), 0), vec![GbaDown(L2), RewindStart]);
+    assert_eq!(
+        g.feed(Down(R2), 50),
+        vec![GbaDown(R2)],
         "the rewind let a fast forward start under it"
     );
-    assert!(g.feed(Up(R2), 100).is_empty());
-    assert_eq!(g.feed(Up(L2), 150), vec![RewindStop]);
+    assert_eq!(g.feed(Up(R2), 100), vec![GbaUp(R2)]);
+    assert_eq!(g.feed(Up(L2), 150), vec![GbaUp(L2), RewindStop]);
     // One press of R2, inside the double tap window of that refused release.
-    assert_eq!(g.feed(Down(R2), 200), vec![FfStart]);
+    assert_eq!(g.feed(Down(R2), 200), vec![GbaDown(R2), FfStart]);
     assert!(!g.ff_latched(), "a single press latched fast forward");
     assert_eq!(
         g.feed(Up(R2), 400),
-        vec![FfStop],
+        vec![GbaUp(R2), FfStop],
         "the finger came off R2 and the speed stayed"
     );
 }
@@ -257,7 +258,10 @@ fn rewind_beats_latched_fast_forward() {
     g.feed(Up(R2), 50);
     g.feed(Down(R2), 100);
     g.feed(Up(R2), 150); // latched
-    assert_eq!(g.feed(Down(L2), 200), vec![FfStop, RewindStart]);
+    assert_eq!(
+        g.feed(Down(L2), 200),
+        vec![GbaDown(L2), FfStop, RewindStart]
+    );
 }
 
 /// 120 ms was not enough time to land the second key of a chord, so the window is generous.

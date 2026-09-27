@@ -224,8 +224,16 @@ impl Gestures {
             }
             Btn::Lid => vec![Action::LidClose],
             Btn::VolUp | Btn::VolDown => self.volume_press(b, now),
-            Btn::L2 => self.rewind_start(),
-            Btn::R2 => self.ff_down(now),
+            Btn::L2 => {
+                let mut out = vec![Action::GbaDown(Btn::L2)];
+                out.extend(self.rewind_start());
+                out
+            }
+            Btn::R2 => {
+                let mut out = vec![Action::GbaDown(Btn::R2)];
+                out.extend(self.ff_down(now));
+                out
+            }
             _ => {
                 if let (true, Some((bit, action))) = (self.chording(now), chord(b)) {
                     self.mark_chorded();
@@ -244,8 +252,16 @@ impl Gestures {
             Btn::Power => self.power_up(),
             Btn::Lid => vec![Action::LidOpen],
             Btn::VolUp | Btn::VolDown => self.volume_release(b),
-            Btn::L2 => self.rewind_stop(),
-            Btn::R2 => self.ff_up(now),
+            Btn::L2 => {
+                let mut out = vec![Action::GbaUp(Btn::L2)];
+                out.extend(self.rewind_stop());
+                out
+            }
+            Btn::R2 => {
+                let mut out = vec![Action::GbaUp(Btn::R2)];
+                out.extend(self.ff_up(now));
+                out
+            }
             _ => {
                 if let Some((bit, _)) = chord(b) {
                     if self.chord_held & bit != 0 {

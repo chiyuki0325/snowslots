@@ -3,16 +3,18 @@ mod common;
 use common::{app_playing_in, app_playing_with, tmp_root_with_carts, StubSnapshot};
 use slot::app::{App, Phase};
 use slot_input::{Action, Btn};
-use slot_store::{Cart, Core, StateRing};
+use slot_store::{Cart, Core, Platform, StateRing};
 
 /// No content root, so nothing this app does can reach a ring.
 fn app_playing(stem: &str) -> App {
     let mut a = App::new(vec![Cart {
         stem: stem.to_string(),
+        platform: Platform::Gba,
         rom: format!("Games/GBA/{stem}.gba").into(),
         label: None,
         code: String::new(),
         title: stem.to_uppercase(),
+        last_launched: None,
     }]);
     a.apply(Action::Insert);
     a.on_core_ready();

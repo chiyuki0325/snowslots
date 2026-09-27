@@ -25,10 +25,13 @@ pub enum Toast {
     /// rasterised per variant, so the state has to be in the string.
     ColourOn,
     ColourOff,
+    NameSort,
+    RecentSort,
+    SystemSort,
 }
 
 impl Toast {
-    pub const ALL: [Toast; 8] = [
+    pub const ALL: [Toast; 11] = [
         Toast::StateSaved,
         Toast::StateLoaded,
         Toast::NeedsGpsp,
@@ -37,6 +40,9 @@ impl Toast {
         Toast::PeerEnded,
         Toast::ColourOn,
         Toast::ColourOff,
+        Toast::NameSort,
+        Toast::RecentSort,
+        Toast::SystemSort,
     ];
 
     /// Position in `ALL`, which is the order faces are uploaded in.
@@ -59,6 +65,9 @@ impl Toast {
             Toast::PeerEnded => "Link was ended",
             Toast::ColourOn => "Correction On",
             Toast::ColourOff => "Correction Off",
+            Toast::NameSort => "Name Sort",
+            Toast::RecentSort => "Recent Sort",
+            Toast::SystemSort => "System Sort",
         }
     }
 }

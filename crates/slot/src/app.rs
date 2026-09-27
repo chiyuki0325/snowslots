@@ -1,21 +1,23 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 use slot_gfx::{OUT_H, OUT_W};
 use slot_input::{Action, Btn, MUTE_CHORD_MS};
 use slot_power::{Battery, Charge, LedState, LidPolicy, Power};
 use slot_retro::LinkChannel;
 use slot_store::{
-    format_stamp, read_slot_state, scan, write_slot_state, Cart, Core, SlotState, StateEntry,
-    StateRing, Theme, BLUE_LIGHT_MAX, BRIGHTNESS_MAX, FF_SPEEDS, RING_MAX, VOLUME_MAX,
+    format_stamp, read_slot_state, refresh, scan_fast, write_last_played, write_slot_state, Cart,
+    Core, Platform, SlotState, StateEntry, StateRing, Theme, BLUE_LIGHT_MAX, BRIGHTNESS_MAX,
+    FF_SPEEDS, RING_MAX, VOLUME_MAX,
 };
 use slot_ui::{
     board_from, board_zoom, draw_backdrop, draw_empty_slot, draw_footer, draw_sticker, ease, grown,
     lid_at, lid_from, lift_of, on_board, shelf_cart_at, ClockPicker, Draw, FfState, Hud, HudKind,
     Icon, LinkBadge, Millis, Placed, Polaroids, PowerChoice, QuickMenu, QuickMenuFaces, QuickRow,
-    QuickValue, Refusal, Shelf, SlotChrome, TexId, Toast, BOARD_W, BOARD_X, CART_W, CHIP_H, CHIP_U,
-    CHIP_V, CHIP_W, HINT_EDGE, HINT_H, HOP_LIFT, SHADOW_H, SHADOW_W, SOCKET_H, SOCKET_U, SOCKET_V,
-    SOCKET_W, TURN_PAD,
+    QuickValue, Refusal, Shelf, ShelfSort, SlotChrome, TexId, Toast, BOARD_W, BOARD_X, CART_W,
+    CHIP_H, CHIP_U, CHIP_V, CHIP_W, HINT_EDGE, HINT_H, HOP_LIFT, SHADOW_H, SHADOW_W, SOCKET_H,
+    SOCKET_U, SOCKET_V, SOCKET_W, TURN_PAD,
 };
 
 use crate::audio::Sfx;
@@ -606,12 +608,17 @@ pub struct App {
     /// Where the radio's slow work goes: loading the driver before a link and dropping it
     /// afterwards. One queue, in order, off the frame loop — see `link_radio::RadioQueue`.
     radio: Box<dyn RadioJobs>,
+    /// A cache-backed boot draws immediately; the card itself is reconciled after that first view.
+    library_refresh_due: bool,
+    library_refresh: Option<Receiver<Result<Vec<Cart>, slot_store::StoreError>>>,
 }
 
 impl App {
     pub fn new(carts: Vec<Cart>) -> Self {
         App {
             radio: radio_jobs(),
+            library_refresh_due: false,
+            library_refresh: None,
             phase: Phase::Shelf,
             shelf: Shelf::new(carts),
             play_held: None,
@@ -696,8 +703,11 @@ impl App {
         // Before anything is drawn. The card's palette cannot change while the device is on,
         // so it is read once and never asked for again.
         slot_ui::set_theme(Theme::read(root));
-        let mut app = App::new(scan(root).unwrap_or_default());
+        let scanned = scan_fast(root).ok();
+        let from_cache = scanned.as_ref().is_some_and(|scan| scan.from_cache);
+        let mut app = App::new(scanned.map(|scan| scan.carts).unwrap_or_default());
         app.root = Some(root.to_path_buf());
+        app.library_refresh_due = from_cache;
         app.state = read_slot_state(root);
         if app.state.clock_set {
             app.start();
@@ -902,6 +912,67 @@ impl App {
     /// Face textures in `carts` order. Only the compositor can mint a `TexId`.
     pub fn set_faces(&mut self, faces: Vec<TexId>) {
         self.shelf.set_faces(faces);
+    }
+
+    pub fn set_cart_face(&mut self, platform: Platform, stem: &str, face: TexId) {
+        self.shelf.set_face(platform, stem, face);
+    }
+
+    pub fn replace_carts(&mut self, carts: Vec<Cart>) {
+        self.shelf.replace_carts(carts);
+    }
+
+    pub fn library_refresh_pending(&self) -> bool {
+        self.library_refresh_due || self.library_refresh.is_some()
+    }
+
+    /// Called after the first frame has been presented, so a cache hit always reaches the screen
+    /// before the card is walked.
+    pub fn start_library_refresh(&mut self) {
+        if !std::mem::take(&mut self.library_refresh_due) {
+            return;
+        }
+        let Some(root) = self.root.clone() else {
+            return;
+        };
+        let (tx, rx) = mpsc::channel();
+        let spawned = std::thread::Builder::new()
+            .name("slot-library".into())
+            .spawn(move || {
+                let _ = tx.send(refresh(&root));
+            });
+        if let Err(e) = spawned {
+            eprintln!("slot: library refresh thread: {e}");
+            return;
+        }
+        self.library_refresh = Some(rx);
+    }
+
+    pub fn can_replace_library(&self) -> bool {
+        matches!(self.phase, Phase::Shelf) && self.core_picker.is_none()
+    }
+
+    pub fn take_library_refresh(&mut self) -> Option<Vec<Cart>> {
+        let result = match self.library_refresh.as_ref()?.try_recv() {
+            Ok(result) => result,
+            Err(TryRecvError::Empty) => return None,
+            Err(TryRecvError::Disconnected) => {
+                self.library_refresh = None;
+                return None;
+            }
+        };
+        self.library_refresh = None;
+        match result {
+            Ok(carts) => Some(carts),
+            Err(e) => {
+                eprintln!("slot: library refresh: {e}");
+                None
+            }
+        }
+    }
+
+    pub fn shelf_sort(&self) -> ShelfSort {
+        self.shelf.sort_mode()
     }
 
     /// Handed over when the core is spawned, which is on the way into the slot.
@@ -1301,6 +1372,15 @@ impl App {
             .map(|c| c.stem.as_str())
     }
 
+    fn cycle_shelf_sort(&mut self, by: i32, now: Millis) {
+        let toast = match self.shelf_mut().cycle_sort(by) {
+            ShelfSort::Name => Toast::NameSort,
+            ShelfSort::Recent => Toast::RecentSort,
+            ShelfSort::System => Toast::SystemSort,
+        };
+        self.hud.toast(toast, now);
+    }
+
     /// The cached reading. `None` until the first slow tick, and on any device with no gauge.
     pub fn battery(&self) -> Option<Battery> {
         self.battery
@@ -1435,8 +1515,24 @@ impl App {
                 // cart at a time. A thirty cart library is a long hold on Left or Right and two
                 // presses here. SELECT+Up is brightness and reaches `adjust` before this, so the
                 // chord is unaffected.
-                Action::GbaDown(Btn::Up) => self.shelf_mut().jump_prev_letter(),
-                Action::GbaDown(Btn::Down) => self.shelf_mut().jump_next_letter(),
+                Action::GbaDown(Btn::L2) => self.cycle_shelf_sort(-1, now),
+                Action::GbaDown(Btn::R2) => self.cycle_shelf_sort(1, now),
+                Action::GbaDown(Btn::L1) => {
+                    let offset = self.state.utc_offset_min;
+                    self.shelf_mut().jump_prev_group(offset);
+                }
+                Action::GbaDown(Btn::R1) => {
+                    let offset = self.state.utc_offset_min;
+                    self.shelf_mut().jump_next_group(offset);
+                }
+                Action::GbaDown(Btn::Up) => {
+                    let offset = self.state.utc_offset_min;
+                    self.shelf_mut().jump_prev_group(offset);
+                }
+                Action::GbaDown(Btn::Down) => {
+                    let offset = self.state.utc_offset_min;
+                    self.shelf_mut().jump_next_group(offset);
+                }
                 Action::ShelfLeft | Action::GbaDown(Btn::Left) => self.shelf_mut().hold_left(now),
                 Action::ShelfRight | Action::GbaDown(Btn::Right) => {
                     self.shelf_mut().hold_right(now)
@@ -1816,6 +1912,9 @@ impl App {
             if seated.is_none() {
                 self.link_loaded = None;
             }
+            if let Some(cart) = seated.as_deref() {
+                self.record_launch(cart);
+            }
             self.record_cart(seated);
         }
         self.step_screen(dt);
@@ -1954,6 +2053,25 @@ impl App {
         self.last_led = Some(state);
         if let Some(power) = self.power.as_mut() {
             power.set_led(state);
+        }
+    }
+
+    fn record_launch(&mut self, stem: &str) {
+        let Some(platform) = self
+            .shelf
+            .carts
+            .iter()
+            .find(|cart| cart.stem == stem)
+            .map(|cart| cart.platform)
+        else {
+            return;
+        };
+        let utc_secs = self.utc_secs();
+        self.shelf.record_launched(platform, stem, utc_secs);
+        if let Some(root) = &self.root {
+            if let Err(e) = write_last_played(root, platform, stem, utc_secs) {
+                eprintln!("slot: play history: {e}");
+            }
         }
     }
 

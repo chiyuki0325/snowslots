@@ -1,4 +1,4 @@
-use slot_store::{Cart, Core};
+use slot_store::{Cart, Core, Platform};
 use slot_ui::{
     board_at, board_face, chip_face, chip_shadow_face, gba_shell_for, lid_at, lift_of, on_board,
     padded, rom_marking, rom_marking_face, shelf_cart, slide_of, socket_face, CartFace, Placed,
@@ -9,10 +9,12 @@ use slot_ui::{
 fn cart(stem: &str, code: &str) -> Cart {
     Cart {
         stem: stem.into(),
+        platform: Platform::Gba,
         rom: format!("Games/GBA/{stem}.gba").into(),
         label: None,
         code: code.into(),
         title: stem.to_uppercase(),
+        last_launched: None,
     }
 }
 

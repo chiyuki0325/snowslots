@@ -1,5 +1,5 @@
 use slot_power::{Battery, Charge};
-use slot_store::Cart;
+use slot_store::{Cart, Platform};
 use slot_ui::{draw_footer, label_colour, Draw, Printed, Shelf, TexId, CART_W, OUT_W};
 
 fn shelf_with(n: usize) -> Shelf {
@@ -7,10 +7,12 @@ fn shelf_with(n: usize) -> Shelf {
         (0..n)
             .map(|i| Cart {
                 stem: format!("Game {i}"),
+                platform: Platform::Gba,
                 rom: format!("Games/GBA/Game {i}.gba").into(),
                 label: None,
                 code: String::new(),
                 title: format!("GAME {i}"),
+                last_launched: None,
             })
             .collect(),
     )

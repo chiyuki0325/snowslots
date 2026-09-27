@@ -62,7 +62,7 @@ pub use quick_menu::{
     QuickMenuFaces, QuickRow, QuickValue, QUICK_EDGE, QUICK_PITCH, QUICK_TOP,
 };
 pub use refusal::Refusal;
-pub use shelf::{foot_y, rest_y, Shelf};
+pub use shelf::{foot_y, rest_y, Shelf, ShelfSort};
 pub use shell::{
     gba_shell_for, lookup_order_is_exact_then_family_then_default, shell_for, table_keys, Finish,
     Shell, DEFAULT_SHELL,

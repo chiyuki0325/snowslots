@@ -1,15 +1,17 @@
 use std::time::{Duration, Instant};
 
 use slot::face_builder::{BuiltFaces, FaceBuilder};
-use slot_store::Cart;
+use slot_store::{Cart, Platform};
 
 fn cart(stem: &str) -> Cart {
     Cart {
         stem: stem.into(),
+        platform: Platform::Gba,
         rom: format!("Games/GBA/{stem}.gba").into(),
         label: None,
         title: stem.to_uppercase(),
         code: String::new(),
+        last_launched: None,
     }
 }
 

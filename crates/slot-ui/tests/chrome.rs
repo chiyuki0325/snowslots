@@ -1,4 +1,4 @@
-use slot_store::Cart;
+use slot_store::{Cart, Platform};
 use slot_ui::{
     draw_empty_slot, edge, foot_y, housing, icon_box, opening, recess, Draw, Shelf, SlotChrome,
     TexId, ALERT_PX, CART_H, CART_W, LABEL_H, LABEL_Y, MOUTH_H, OUT_H, OUT_W,
@@ -11,10 +11,12 @@ const CENTRED: f32 = (OUT_W - CART_W) as f32 / 2.0;
 fn cart() -> Cart {
     Cart {
         stem: "Emerald".into(),
+        platform: Platform::Gba,
         rom: "Games/GBA/Emerald.gba".into(),
         label: None,
         code: String::new(),
         title: "POKEMON EMER".into(),
+        last_launched: None,
     }
 }
 
@@ -22,10 +24,12 @@ fn cart() -> Cart {
 fn other() -> Cart {
     Cart {
         stem: "Metroid Fusion".into(),
+        platform: Platform::Gba,
         rom: "Games/GBA/Metroid Fusion.gba".into(),
         label: None,
         code: String::new(),
         title: "METROID4USA".into(),
+        last_launched: None,
     }
 }
 

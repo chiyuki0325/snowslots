@@ -16,6 +16,9 @@ The release also distributes compiled libretro cores `slot` did not write:
 | `gpsp_libretro`     | https://github.com/libretro/gpsp                   | GPL-2.0-or-later     | `gpsp-GPL-2.0.txt`         |
 | `mgba_libretro`     | https://github.com/libretro/mgba                   | MPL-2.0              | `mgba-MPL-2.0.txt`         |
 
+The `slot-store` binary also statically links `pinyin` 0.11.0 by mozillazg under the MIT
+license. Its license text ships as `pinyin-MIT.txt`.
+
 **Every one of those is why GPL-3.0 was available to take, and it was checked rather than
 assumed.** gpSP carries the "either version 2 of the License, or (at your option) any later
 version" grant in 36 of its source files and version-2-only wording in none of them, so its

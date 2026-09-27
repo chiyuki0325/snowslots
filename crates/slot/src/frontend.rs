@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use slot_gfx::{Compositor, Draw, TexId, OUT_H, OUT_W};
 use slot_input::{InputSource, Millis};
 use slot_power::{Platform, Power};
-use slot_store::format_stamp;
+use slot_store::{format_stamp, Cart};
 use slot_ui::{
     arrows_hint_face, badge_face, cart_face, cart_shadow, chip_face, chip_shadow_face,
     date_time_text, hhmm, hint_face, icon_face, menu_face, photo_face, quick_caret_face,
@@ -19,6 +19,7 @@ use slot_ui::{
 use crate::app::{App, LinkRow, Phase};
 use crate::build_info::Build;
 use crate::face_builder::FaceBuilder;
+use crate::library_face_builder::LibraryFaceBuilder;
 use crate::link_art_builder::LinkArtBuilder;
 use crate::link_screen::{LinkSprites, Sprite};
 use crate::link_start::{LinkFail, LinkStep};
@@ -50,6 +51,9 @@ pub struct Frontend {
     title_tex: Option<TexId>,
     /// Builds the open cart's faces off the frame loop.
     faces: FaceBuilder,
+    /// Builds the shelf faces after a cached first frame and filesystem reconciliation.
+    library_faces: LibraryFaceBuilder,
+    refreshed_library: Option<Vec<Cart>>,
     /// Builds the link screen's artwork off the frame loop, once, at boot.
     link_art: LinkArtBuilder,
     /// Whether the link art has been uploaded and handed to `App` already.
@@ -124,6 +128,8 @@ impl Frontend {
             polaroid_texes: Vec::new(),
             title_tex: None,
             faces: FaceBuilder::spawn(),
+            library_faces: LibraryFaceBuilder::spawn(),
+            refreshed_library: None,
             link_art: LinkArtBuilder::spawn(),
             link_art_done: false,
             core_asked: None,
@@ -141,16 +147,18 @@ impl Frontend {
     /// Everything that never changes: the carts, the HUD glyphs and the key caps. All of it
     /// needs a live context, so it happens after the compositor and not at boot.
     pub fn upload_faces(&mut self, compositor: &mut Compositor) {
-        let faces = self
-            .session
-            .app()
-            .carts()
-            .map(|c| {
-                let f = cart_face(c);
-                compositor.create_texture(f.w, f.h, &f.rgba)
-            })
-            .collect();
-        self.session.app_mut().set_faces(faces);
+        if !self.session.app().library_refresh_pending() {
+            let faces = self
+                .session
+                .app()
+                .carts()
+                .map(|c| {
+                    let f = cart_face(c);
+                    compositor.create_texture(f.w, f.h, &f.rgba)
+                })
+                .collect();
+            self.session.app_mut().set_faces(faces);
+        }
         let icons = Icon::ALL
             .iter()
             .map(|i| {
@@ -313,6 +321,26 @@ impl Frontend {
         self.upload_wallpaper(compositor);
     }
 
+    fn sync_library(&mut self, compositor: &mut Compositor) {
+        if self.refreshed_library.is_none() {
+            self.refreshed_library = self.session.app_mut().take_library_refresh();
+        }
+        if self.session.app().can_replace_library() {
+            if let Some(carts) = self.refreshed_library.take() {
+                self.library_faces.request(carts.clone());
+                self.session.app_mut().replace_carts(carts);
+            }
+        }
+        // One upload per frame keeps a large library from turning reconciliation into a second
+        // startup pause. Until each face arrives, Shelf draws its existing coloured placeholder.
+        if let Some(built) = self.library_faces.take() {
+            let tex = compositor.create_texture(built.face.w, built.face.h, &built.face.rgba);
+            self.session
+                .app_mut()
+                .set_cart_face(built.platform, &built.stem, tex);
+        }
+    }
+
     /// One decode, at boot. A card with no `Wallpapers`, no readable picture in it, or a
     /// picture the decoder will not take, gets the plain ground it had before.
     fn upload_wallpaper(&mut self, compositor: &mut Compositor) {
@@ -339,6 +367,7 @@ impl Frontend {
     /// One frame into the offscreen target and no further: what `render` presents, and what a
     /// test with no window to present to reads back with `Compositor::read_frame`.
     pub fn compose(&mut self, compositor: &mut Compositor) {
+        self.sync_library(compositor);
         // Set every frame rather than on the edge: the grade is part of the final blit, so
         // it has to be right whether or not anything just changed it.
         compositor.set_blue_light(self.session.app().blue_light());
@@ -408,6 +437,7 @@ impl Frontend {
     /// Input and time, after the frame is on screen. The gesture windows expire on this
     /// whether or not anything was pressed, so it is called every frame.
     pub fn advance(&mut self, input: &mut dyn InputSource) {
+        self.session.app_mut().start_library_refresh();
         let now = self.now();
         let events = input.poll(now);
         self.session.feed(events, now);

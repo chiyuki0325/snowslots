@@ -16,7 +16,7 @@ use slot::frontend::Frontend;
 use slot_gfx::{Compositor, HeadlessSurface, OUT_H, OUT_W};
 use slot_input::{Action, Btn, InputSource, Millis, RawEvent};
 use slot_power::SimPlatform;
-use slot_store::Cart;
+use slot_store::{Cart, Platform};
 use slot_ui::{
     cart_face, clean_label, edge, housing, label_colour, opening, recess, Draw, SlotChrome, CART_H,
     CART_W, LABEL_H, LABEL_Y,
@@ -492,10 +492,12 @@ fn cartridges() -> [(&'static str, Cart); 1] {
         "gba",
         Cart {
             stem: "Emerald".into(),
+            platform: Platform::Gba,
             rom: "Games/GBA/Emerald.gba".into(),
             label: None,
             code: String::new(),
             title: "POKEMON EMER".into(),
+            last_launched: None,
         },
     )]
 }

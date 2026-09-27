@@ -45,6 +45,9 @@ fn the_banner_says_what_happened_and_never_what_is_on_screen() {
             Toast::PeerEnded,
             Toast::ColourOn,
             Toast::ColourOff,
+            Toast::NameSort,
+            Toast::RecentSort,
+            Toast::SystemSort,
         ],
         "a banner was added or dropped: every face is uploaded by its place in this list"
     );

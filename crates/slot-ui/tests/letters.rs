@@ -41,20 +41,18 @@ fn a_title_led_by_punctuation_files_last() {
     assert_eq!(names, vec!["1943", "Apotris", "[BIOS] Test"]);
 }
 
-/// Every digit-led title shares one stop, and so does everything led by neither. A row has few
-/// enough of either that giving each its own stop would be a stop that moves by one, which is
-/// what the shoulders already do.
+/// Each digit is a stop of its own, while punctuation shares the final catch-all stop.
 #[test]
-fn digits_and_punctuation_share_one_stop() {
-    assert_eq!(initial("1943"), '#');
-    assert_eq!(initial("3D Pinball"), '#');
+fn digits_have_their_own_stops_and_punctuation_is_other() {
+    assert_eq!(initial("1943"), '1');
+    assert_eq!(initial("3D Pinball"), '3');
     assert_eq!(initial("[BIOS] Test"), '#');
     assert_eq!(initial("apple"), 'A');
     assert_eq!(initial("Apotris"), 'A');
     assert_eq!(initial("  Metroid"), 'M', "leading space hid the letter");
 }
 
-use slot_store::Cart;
+use slot_store::{Cart, Platform};
 use slot_ui::Shelf;
 
 fn shelf_of(names: &[&str]) -> Shelf {
@@ -63,10 +61,12 @@ fn shelf_of(names: &[&str]) -> Shelf {
             .iter()
             .map(|n| Cart {
                 stem: (*n).to_string(),
+                platform: Platform::Gba,
                 rom: format!("Games/GBA/{n}.gba").into(),
                 label: None,
                 code: String::new(),
                 title: n.to_uppercase(),
+                last_launched: None,
             })
             .collect(),
     )

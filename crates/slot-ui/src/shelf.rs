@@ -1,5 +1,7 @@
+use std::collections::{HashMap, HashSet};
+
 use slot_gfx::{Draw, TexId, OUT_H, OUT_W};
-use slot_store::Cart;
+use slot_store::{name_group, name_sort_key, Cart, NameGroup, Platform};
 
 use crate::cart::{label_colour, label_text, CART_H, CART_W};
 use crate::hud::Millis;
@@ -53,11 +55,44 @@ const REPEAT_DELAY_MS: Millis = 400;
 /// row of deliberate single presses is paced exactly as it always was.
 const REPEAT_MS: [Millis; 4] = [110, 85, 65, 50];
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum ShelfSort {
+    Name,
+    Recent,
+    System,
+}
+
+impl ShelfSort {
+    pub fn next(self) -> Self {
+        match self {
+            ShelfSort::Name => ShelfSort::Recent,
+            ShelfSort::Recent => ShelfSort::System,
+            ShelfSort::System => ShelfSort::Name,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            ShelfSort::Name => ShelfSort::System,
+            ShelfSort::Recent => ShelfSort::Name,
+            ShelfSort::System => ShelfSort::Recent,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
+enum Group {
+    Name(NameGroup),
+    Day(Option<i64>),
+    System(Platform),
+}
+
 pub struct Shelf {
     pub carts: Vec<Cart>,
     pub index: usize,
     pub scroll: f32,
-    faces: Vec<TexId>,
+    sort: ShelfSort,
+    faces: HashMap<(Platform, String), TexId>,
     /// The cart silhouette in black, drawn under a dimmed cart.
     shadow: Option<TexId>,
     /// The presses added up, in the same continuous coordinate `scroll` lives in, so it counts
@@ -78,7 +113,8 @@ impl Shelf {
             carts,
             index: 0,
             scroll: 0.0,
-            faces: Vec::new(),
+            sort: ShelfSort::Name,
+            faces: HashMap::new(),
             shadow: None,
             ride: 0.0,
             vel: 0.0,
@@ -104,13 +140,108 @@ impl Shelf {
     }
 
     pub fn set_faces(&mut self, faces: Vec<TexId>) {
-        self.faces = faces;
+        self.faces = self
+            .carts
+            .iter()
+            .zip(faces)
+            .map(|(cart, face)| ((cart.platform, cart.stem.clone()), face))
+            .collect();
+    }
+
+    pub fn set_face(&mut self, platform: Platform, stem: &str, face: TexId) {
+        self.faces.insert((platform, stem.to_string()), face);
     }
 
     /// In `hints` order.
     pub fn find(&self, stem: &str) -> Option<(&Cart, Option<TexId>)> {
-        let i = self.carts.iter().position(|c| c.stem == stem)?;
-        Some((&self.carts[i], self.faces.get(i).copied()))
+        let cart = self.carts.iter().find(|c| c.stem == stem)?;
+        let face = self.faces.get(&(cart.platform, cart.stem.clone())).copied();
+        Some((cart, face))
+    }
+
+    pub fn sort_mode(&self) -> ShelfSort {
+        self.sort
+    }
+
+    pub fn cycle_sort(&mut self, by: i32) -> ShelfSort {
+        self.sort = if by < 0 {
+            self.sort.prev()
+        } else {
+            self.sort.next()
+        };
+        self.resort();
+        self.sort
+    }
+
+    pub fn replace_carts(&mut self, carts: Vec<Cart>) {
+        let selected = self
+            .carts
+            .get(self.index)
+            .map(|c| (c.platform, c.stem.clone()));
+        let old_index = self.index;
+        self.carts = carts;
+        self.sort_carts();
+        let live: HashSet<_> = self
+            .carts
+            .iter()
+            .map(|cart| (cart.platform, cart.stem.clone()))
+            .collect();
+        self.faces.retain(|key, _| live.contains(key));
+        let index = selected
+            .and_then(|key| {
+                self.carts
+                    .iter()
+                    .position(|c| (c.platform, &c.stem) == (key.0, &key.1))
+            })
+            .unwrap_or_else(|| old_index.min(self.carts.len().saturating_sub(1)));
+        self.release_hold();
+        self.select(index);
+    }
+
+    pub fn record_launched(&mut self, platform: Platform, stem: &str, utc_secs: i64) {
+        if let Some(cart) = self
+            .carts
+            .iter_mut()
+            .find(|c| c.platform == platform && c.stem == stem)
+        {
+            cart.last_launched = Some(utc_secs);
+            if self.sort == ShelfSort::Recent {
+                self.resort();
+            }
+        }
+    }
+
+    fn resort(&mut self) {
+        let selected = self
+            .carts
+            .get(self.index)
+            .map(|c| (c.platform, c.stem.clone()));
+        self.sort_carts();
+        let index = selected
+            .and_then(|key| {
+                self.carts
+                    .iter()
+                    .position(|c| (c.platform, &c.stem) == (key.0, &key.1))
+            })
+            .unwrap_or(0);
+        self.release_hold();
+        self.select(index);
+    }
+
+    fn sort_carts(&mut self) {
+        match self.sort {
+            ShelfSort::Name => self.carts.sort_by_key(|c| name_sort_key(&c.stem)),
+            ShelfSort::Recent => self.carts.sort_by(|a, b| {
+                b.last_launched
+                    .cmp(&a.last_launched)
+                    .then_with(|| name_sort_key(&a.stem).cmp(&name_sort_key(&b.stem)))
+            }),
+            ShelfSort::System => self.carts.sort_by(|a, b| {
+                a.platform
+                    .cmp(&b.platform)
+                    .then_with(|| name_sort_key(&a.stem).cmp(&name_sort_key(&b.stem)))
+            }),
+        }
     }
 
     pub fn left(&mut self) {
@@ -121,34 +252,42 @@ impl Shelf {
         self.step(1);
     }
 
-    /// Up and Down: to the first cart of the next letter, or the previous one.
-    ///
-    /// The row is a ring, so the last letter's Down reaches the first letter by carrying on
-    /// forwards rather than by turning round, and the first letter's Up reaches the last the same
-    /// way. That costs a long slide once round a big row, which is the honest picture of what the
-    /// press asked for; turning round instead would show the row travelling one way while the
-    /// player pressed the other.
-    ///
-    /// Up goes to the *start* of the previous letter rather than to the cart before this one, so
-    /// a row stopped halfway through the Ms lands on the first M rather than stepping back into
-    /// the Ls. Pressed again from there it does reach the Ls, because by then it is already at
-    /// the letter's start.
+    /// Up/Down and L1/R1 cross one group at a time. The group follows the active sort: a leading
+    /// digit or pinyin initial, a local calendar day, or a system.
+    pub fn jump_next_group(&mut self, utc_offset_min: i16) {
+        self.jump(1, utc_offset_min);
+    }
+
+    pub fn jump_prev_group(&mut self, utc_offset_min: i16) {
+        self.jump(-1, utc_offset_min);
+    }
+
     pub fn jump_next_letter(&mut self) {
-        self.jump(1);
+        self.jump_next_group(0);
     }
 
     pub fn jump_prev_letter(&mut self) {
-        self.jump(-1);
+        self.jump_prev_group(0);
     }
 
-    /// The first cart of the letter `from` is filed under.
-    fn start_of_letter(&self, from: usize) -> usize {
+    fn group(&self, cart: &Cart, utc_offset_min: i16) -> Group {
+        match self.sort {
+            ShelfSort::Name => Group::Name(name_group(&cart.stem)),
+            ShelfSort::Recent => Group::Day(
+                cart.last_launched
+                    .map(|t| (t + i64::from(utc_offset_min) * 60).div_euclid(86_400)),
+            ),
+            ShelfSort::System => Group::System(cart.platform),
+        }
+    }
+
+    fn start_of_group(&self, from: usize, utc_offset_min: i16) -> usize {
         let n = self.carts.len();
-        let letter = slot_store::initial(&self.carts[from].stem);
+        let group = self.group(&self.carts[from], utc_offset_min);
         let mut at = from;
         for _ in 0..n {
             let before = (at as i32 - 1).rem_euclid(n as i32) as usize;
-            if slot_store::initial(&self.carts[before].stem) != letter {
+            if self.group(&self.carts[before], utc_offset_min) != group {
                 break;
             }
             at = before;
@@ -156,49 +295,39 @@ impl Shelf {
         at
     }
 
-    fn jump(&mut self, dir: i32) {
+    fn jump(&mut self, dir: i32, utc_offset_min: i16) {
         let n = self.carts.len();
         if n < 2 {
             return;
         }
         let wrap = |i: i32| i.rem_euclid(n as i32) as usize;
-        let here = slot_store::initial(&self.carts[self.index].stem);
-        // A row filed under one letter has nowhere to go, in either direction. Said once here
-        // rather than left to the walks below, which have no previous letter to find and would
-        // wander the ring looking for one.
+        let here = self.group(&self.carts[self.index], utc_offset_min);
         if self
             .carts
             .iter()
-            .all(|c| slot_store::initial(&c.stem) == here)
+            .all(|cart| self.group(cart, utc_offset_min) == here)
         {
             return;
         }
-        let target = match dir > 0 {
-            true => {
-                let mut at = self.index;
-                for _ in 0..n {
-                    at = wrap(at as i32 + 1);
-                    if slot_store::initial(&self.carts[at].stem) != here {
-                        break;
-                    }
+        let target = if dir > 0 {
+            let mut at = self.index;
+            for _ in 0..n {
+                at = wrap(at as i32 + 1);
+                if self.group(&self.carts[at], utc_offset_min) != here {
+                    break;
                 }
-                at
             }
-            false => {
-                let start = self.start_of_letter(self.index);
-                match start == self.index {
-                    true => self.start_of_letter(wrap(start as i32 - 1)),
-                    false => start,
-                }
+            at
+        } else {
+            let start = self.start_of_group(self.index, utc_offset_min);
+            if start == self.index {
+                self.start_of_group(wrap(start as i32 - 1), utc_offset_min)
+            } else {
+                start
             }
         };
-        // Signed the way the press asked, never the short way round, so the row is never seen
-        // travelling one way while the player is pressing the other.
         let ahead = (target as i32 - self.index as i32).rem_euclid(n as i32);
-        let delta = match dir > 0 {
-            true => ahead,
-            false => ahead - n as i32,
-        };
+        let delta = if dir > 0 { ahead } else { ahead - n as i32 };
         self.index = target;
         self.ride += delta as f32;
     }
@@ -476,7 +605,7 @@ impl Shelf {
                     });
                 }
             }
-            out.push(match self.faces.get(i) {
+            out.push(match self.faces.get(&(cart.platform, cart.stem.clone())) {
                 Some(tex) => Draw::Tex {
                     x,
                     y,

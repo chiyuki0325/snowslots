@@ -1,17 +1,38 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use pinyin::ToPinyin;
+
 use crate::gba::{header_code, header_title};
+use crate::library_cache::{read_library_cache, write_library_cache};
+use crate::{read_play_history, Platform};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Cart {
     /// Filename stem, which is the key for labels, saves and states. Not a content hash.
     pub stem: String,
+    pub platform: Platform,
     pub rom: PathBuf,
     pub label: Option<PathBuf>,
     pub title: String,
     /// The four character header game code, empty when the rom has none.
     pub code: String,
+    /// UTC seconds since the Unix epoch. `None` means this cart has not launched successfully.
+    pub last_launched: Option<i64>,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum NameGroup {
+    Digit(u8),
+    Letter(u8),
+    Other,
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct NameSortKey {
+    group: NameGroup,
+    folded: String,
+    original: String,
 }
 
 #[derive(Debug)]
@@ -35,88 +56,154 @@ impl From<std::io::Error> for StoreError {
     }
 }
 
-/// An unmounted card, or a card with no `Games/GBA/`, is an empty shelf, not a boot failure.
-///
-/// A folder that exists and cannot be read is not a boot failure either. The only caller is
-/// `App::boot`, which does `scan(root).unwrap_or_default()`, so an `Err` out of here is not an
-/// error message anywhere, it is an empty shelf. A single directory entry that will not stat
-/// costs that one cart and nothing else.
-pub fn scan(root: &Path) -> Result<Vec<Cart>, StoreError> {
-    let mut carts = Vec::new();
-    let dir = root.join("Games").join(crate::CART_DIR);
-    let entries = match std::fs::read_dir(&dir) {
-        Ok(d) => d,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(carts),
-        Err(e) => {
-            eprintln!("slot: scan: {}: {e}", dir.display());
-            return Ok(carts);
-        }
-    };
-    for entry in entries {
-        let Ok(entry) = entry else {
-            continue;
-        };
-        let rom = entry.path();
-        if is_hidden(&rom) || !rom.is_file() || !is_gba(&rom) {
-            continue;
-        }
-        let Some(stem) = rom.file_stem().and_then(|s| s.to_str()) else {
-            continue;
-        };
-        let label = root
-            .join("Labels")
-            .join(crate::CART_DIR)
-            .join(format!("{stem}.png"));
-        carts.push(Cart {
-            stem: stem.to_string(),
-            title: header_title(&rom).unwrap_or_default(),
-            code: header_code(&rom).unwrap_or_default(),
-            label: label.is_file().then_some(label),
-            rom,
+pub struct ScanResult {
+    pub carts: Vec<Cart>,
+    pub from_cache: bool,
+}
+
+/// Loads the last complete library immediately. A cache miss performs the full scan so first boot
+/// still opens on a truthful shelf rather than briefly claiming the card is empty.
+pub fn scan_fast(root: &Path) -> Result<ScanResult, StoreError> {
+    let history = read_play_history(root).unwrap_or_default();
+    if let Ok(Some(mut carts)) = read_library_cache(root) {
+        merge_history(&mut carts, &history);
+        carts.sort_by_key(|c| name_sort_key(&c.stem));
+        return Ok(ScanResult {
+            carts,
+            from_cache: true,
         });
     }
-    carts.sort_by_key(|c| sort_key(&c.stem));
+    let carts = scan_fresh(root, &history)?;
+    let _ = write_library_cache(root, &carts);
+    Ok(ScanResult {
+        carts,
+        from_cache: false,
+    })
+}
+
+/// Compatibility entry point for callers that do not need to know whether a refresh is due.
+pub fn scan(root: &Path) -> Result<Vec<Cart>, StoreError> {
+    Ok(scan_fast(root)?.carts)
+}
+
+/// Reads the card itself, then replaces the disposable library cache.
+pub fn refresh(root: &Path) -> Result<Vec<Cart>, StoreError> {
+    let history = read_play_history(root).unwrap_or_default();
+    let carts = scan_fresh(root, &history)?;
+    if let Err(e) = write_library_cache(root, &carts) {
+        eprintln!("slot: library cache: {e}");
+    }
     Ok(carts)
 }
 
-fn is_gba(path: &Path) -> bool {
-    path.extension()
-        .and_then(|e| e.to_str())
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("gba"))
+fn scan_fresh(root: &Path, history: &crate::PlayHistory) -> Result<Vec<Cart>, StoreError> {
+    let mut carts = Vec::new();
+    for platform in Platform::ALL {
+        let dir = root.join("Games").join(platform.dir_name());
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(d) => d,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(e) => {
+                eprintln!("slot: scan: {}: {e}", dir.display());
+                continue;
+            }
+        };
+        for entry in entries {
+            let Ok(entry) = entry else {
+                continue;
+            };
+            let rom = entry.path();
+            if is_hidden(&rom) || !rom.is_file() || !is_rom(platform, &rom) {
+                continue;
+            }
+            let Some(stem) = rom.file_stem().and_then(|s| s.to_str()).map(str::to_string) else {
+                continue;
+            };
+            let label = root
+                .join("Labels")
+                .join(platform.dir_name())
+                .join(format!("{stem}.png"));
+            carts.push(Cart {
+                stem: stem.clone(),
+                platform,
+                title: header_title(&rom).unwrap_or_default(),
+                code: header_code(&rom).unwrap_or_default(),
+                label: label.is_file().then_some(label),
+                rom,
+                last_launched: history.get(&(platform, stem)).copied(),
+            });
+        }
+    }
+    carts.sort_by_key(|c| name_sort_key(&c.stem));
+    Ok(carts)
 }
 
-/// Where a title files on the shelf: digits first, then A to Z, and case ignored.
-///
-/// Plain byte order put `apple` after `Zebra`, because every lowercase letter sorts above every
-/// uppercase one, so a card's row depended on how its files happened to be capitalised.
-///
-/// The group runs ahead of the text rather than being folded into it, so that one digit-led title
-/// cannot land between two letters however it is spelled, and anything led by neither, a bracket
-/// or a quote, files after both rather than silently first.
-pub fn sort_key(stem: &str) -> (u8, String) {
-    (group_of(stem), stem.to_uppercase())
-}
-
-fn group_of(stem: &str) -> u8 {
-    match stem.chars().find(|c| !c.is_whitespace()) {
-        Some(c) if c.is_ascii_digit() => 0,
-        Some(c) if c.is_alphabetic() => 1,
-        _ => 2,
+fn merge_history(carts: &mut [Cart], history: &crate::PlayHistory) {
+    for cart in carts {
+        cart.last_launched = history.get(&(cart.platform, cart.stem.clone())).copied();
     }
 }
 
-/// The letter a title is filed under, for skipping a row a letter at a time. Every digit-led
-/// title shares one bucket, and so does everything led by neither a digit nor a letter: a row of
-/// thirty carts has few enough of either that giving each its own stop would be a stop that moves
-/// by one, which is what the shoulder buttons are already for.
+fn is_rom(platform: Platform, path: &Path) -> bool {
+    let expected = match platform {
+        Platform::Gba => "gba",
+    };
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case(expected))
+}
+
+pub fn name_sort_key(stem: &str) -> NameSortKey {
+    let trimmed = stem.trim_start_matches(char::is_whitespace);
+    let mut folded = String::new();
+    for c in trimmed.chars() {
+        if let Some(pinyin) = c.to_pinyin() {
+            folded.push_str(&pinyin.plain().to_uppercase());
+        } else {
+            folded.extend(c.to_uppercase());
+        }
+    }
+    NameSortKey {
+        group: name_group(stem),
+        folded,
+        original: stem.to_string(),
+    }
+}
+
+/// Kept as the public spelling used by older callers and tests.
+pub fn sort_key(stem: &str) -> NameSortKey {
+    name_sort_key(stem)
+}
+
+pub fn name_group(stem: &str) -> NameGroup {
+    let Some(c) = stem.chars().find(|c| !c.is_whitespace()) else {
+        return NameGroup::Other;
+    };
+    if let Some(digit) = c.to_digit(10).filter(|_| c.is_ascii_digit()) {
+        return NameGroup::Digit(digit as u8);
+    }
+    if let Some(pinyin) = c.to_pinyin() {
+        return pinyin
+            .first_letter()
+            .bytes()
+            .next()
+            .map(|c| NameGroup::Letter(c.to_ascii_uppercase() - b'A'))
+            .unwrap_or(NameGroup::Other);
+    }
+    let c = c.to_ascii_uppercase();
+    if c.is_ascii_alphabetic() {
+        NameGroup::Letter(c as u8 - b'A')
+    } else {
+        NameGroup::Other
+    }
+}
+
+/// Compatibility spelling for the shelf's former letter-only grouping.
 pub fn initial(stem: &str) -> char {
-    match group_of(stem) {
-        1 => stem
-            .chars()
-            .find(|c| !c.is_whitespace())
-            .and_then(|c| c.to_uppercase().next())
-            .unwrap_or('#'),
-        _ => '#',
+    match name_group(stem) {
+        NameGroup::Digit(d) => char::from(b'0' + d),
+        NameGroup::Letter(l) => char::from(b'A' + l),
+        NameGroup::Other => '#',
     }
 }
 

@@ -6,7 +6,7 @@ mod common;
 use common::{boot, tmp_root_with_carts};
 use slot::app::{App, Phase};
 use slot_input::Action;
-use slot_store::{read_slot_state, write_slot_state, SlotState};
+use slot_store::{read_play_history, read_slot_state, write_slot_state, Platform, SlotState};
 
 fn seated(cart: &str) -> SlotState {
     SlotState {
@@ -297,4 +297,47 @@ fn a_resumed_cart_starts_seated() {
     .unwrap();
     let a = App::boot(d.path());
     assert_eq!(a.seat(), 1.0, "the resumed cart is still sliding in");
+}
+
+#[test]
+fn a_successful_resume_records_when_the_game_reached_playing() {
+    let d = common::tmp_root_with_carts(&["Emerald", "Fusion"]);
+    let app = common::app_playing_in(d.path(), "Emerald");
+    assert!(matches!(app.phase(), Phase::Playing { .. }));
+
+    let history = read_play_history(d.path()).unwrap();
+    assert!(history
+        .get(&(Platform::Gba, "Emerald".to_string()))
+        .is_some_and(|timestamp| *timestamp > 0));
+}
+
+#[test]
+fn a_cached_boot_waits_for_the_frontend_before_walking_the_card() {
+    let d = common::tmp_root_with_carts(&["Emerald", "Fusion"]);
+    common::clocked(d.path());
+    let first = App::boot(d.path());
+    assert!(!first.library_refresh_pending());
+    drop(first);
+
+    std::fs::write(d.path().join("Games/GBA/New.gba"), vec![0; 0x100]).unwrap();
+    let mut cached = App::boot(d.path());
+    assert!(cached.library_refresh_pending());
+    assert_eq!(
+        cached.carts().count(),
+        2,
+        "the filesystem was read before first paint"
+    );
+    assert!(cached.take_library_refresh().is_none());
+
+    cached.start_library_refresh();
+    let refreshed = (0..100)
+        .find_map(|_| {
+            let carts = cached.take_library_refresh();
+            if carts.is_none() {
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+            carts
+        })
+        .expect("background library refresh");
+    assert_eq!(refreshed.len(), 3);
 }
