@@ -28,9 +28,15 @@ impl Rewind {
     }
 
     pub fn push(&mut self, state: &[u8]) {
-        let Some(prev) = self.cur.replace(state.to_vec()) else {
+        self.push_owned(state.to_vec());
+    }
+
+    /// Keep the snapshot's allocation as the cursor instead of copying it on arrival.
+    pub fn push_owned(&mut self, state: Vec<u8>) {
+        let Some(prev) = self.cur.replace(state) else {
             return;
         };
+        let state = self.cur.as_deref().expect("just installed the snapshot");
         // A core that re-shaped its state cannot be XORed against what it was before, so
         // everything behind that point is unreachable rather than merely different.
         if prev.len() != state.len() {
@@ -137,7 +143,7 @@ impl RewindThread {
                 while let Ok(msg) = rx.recv() {
                     match msg {
                         Msg::Push(state) => {
-                            rewind.push(&state);
+                            rewind.push_owned(state);
                             published.store(rewind.fill(), std::sync::atomic::Ordering::Relaxed);
                         }
                         Msg::Pop(reply) => {

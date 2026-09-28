@@ -42,6 +42,57 @@ fn synthetic_state(i: u32) -> Vec<u8> {
 }
 
 #[test]
+fn owned_snapshots_keep_their_allocation() {
+    let mut r = Rewind::new(4 * 1024 * 1024);
+    let first = synthetic_state(0);
+    let first_ptr = first.as_ptr();
+    r.push_owned(first);
+    let first = r.pop().unwrap();
+    assert_eq!(first.as_ptr(), first_ptr);
+    assert_eq!(first, synthetic_state(0));
+
+    r.push_owned(first);
+    let second = synthetic_state(1);
+    let second_ptr = second.as_ptr();
+    r.push_owned(second);
+    let second = r.pop().unwrap();
+    assert_eq!(second.as_ptr(), second_ptr);
+    assert_eq!(second, synthetic_state(1));
+    assert_eq!(r.pop().unwrap(), synthetic_state(0));
+    assert!(r.pop().is_none());
+}
+
+#[test]
+fn an_owned_size_change_keeps_the_allocation_and_drops_history() {
+    let mut r = Rewind::new(4 * 1024 * 1024);
+    r.push_owned(synthetic_state(0));
+    r.push_owned(synthetic_state(1));
+    assert!(r.bytes_used() > 0);
+    let bigger = vec![7u8; STATE_LEN + 64];
+    let ptr = bigger.as_ptr();
+    r.push_owned(bigger);
+    assert_eq!(r.depth(), 1);
+    assert_eq!(r.bytes_used(), 0);
+    let state = r.pop().unwrap();
+    assert_eq!(state.as_ptr(), ptr);
+    assert_eq!(state, vec![7u8; STATE_LEN + 64]);
+    assert!(r.pop().is_none());
+}
+
+#[test]
+fn the_thread_keeps_the_snapshot_allocation() {
+    let r = RewindThread::spawn(4 * 1024 * 1024);
+    r.push(synthetic_state(0));
+    let state = synthetic_state(1);
+    let ptr = state.as_ptr();
+    r.push(state);
+    let state = r.pop().unwrap();
+    assert_eq!(state.as_ptr(), ptr);
+    assert_eq!(state, synthetic_state(1));
+    assert_eq!(r.pop().unwrap(), synthetic_state(0));
+}
+
+#[test]
 fn rewind_reconstructs_states_exactly_in_reverse() {
     let mut r = Rewind::new(4 * 1024 * 1024);
     let states: Vec<Vec<u8>> = (0..200u32).map(synthetic_state).collect();
