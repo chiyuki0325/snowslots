@@ -350,7 +350,8 @@ tasks:
           # the privilege inside the box never leaves an unwritable build tree on the host.
           docker run --rm --platform linux/arm64 \
             -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
-            -v "$PWD":/src -w /src rust:1.96-bullseye sh -c '
+            -e RUSTUP_TOOLCHAIN=1.96.1 \
+            -v "$PWD":/src -w /src rust:1.96.1-bullseye sh -c '
               git config --global --add safe.directory /src
               {{.CMD}}
               status=$?
