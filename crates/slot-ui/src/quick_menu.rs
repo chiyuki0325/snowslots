@@ -11,6 +11,7 @@ use crate::text;
 pub enum QuickRow {
     FastForward,
     FastForwardSound,
+    FastForwardPitch,
     ColourCorrection,
     Rumble,
     DateTime,
@@ -18,7 +19,7 @@ pub enum QuickRow {
 }
 
 impl QuickRow {
-    /// Colour Correction sits third, and the two rows either side of it are why.
+    /// Colour Correction follows the three fast-forward settings.
     ///
     /// It cannot go first: `App::open_quick_menu` puts the bar on `ALL[0]` every time, so the
     /// top row is the one an arrow lands on the instant the menu opens, and moving that from
@@ -27,14 +28,14 @@ impl QuickRow {
     /// legend reads OPEN rather than CHANGE on them, and keeping them together is what makes
     /// that legend flip exactly once as the bar travels down.
     ///
-    /// That leaves above or below Rumble, and above is the better of the two. Fast Forward and
-    /// its Sound are a pair — the second reads as a qualifier of the first — so nothing may come
-    /// between them, and what follows the pair is the settings that stand alone. Of those,
-    /// colour correction is in effect every second a game is on screen while rumble only matters
+    /// That leaves above or below Rumble, and above is the better of the two. Fast Forward,
+    /// Sound, and Pitch belong together; what follows them is the settings that stand alone.
+    /// Of those, colour correction is in effect every second a game is on screen while rumble only matters
     /// when a cart asks for the motor, so the unconditional one comes first.
-    pub const ALL: [QuickRow; 6] = [
+    pub const ALL: [QuickRow; 7] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
+        QuickRow::FastForwardPitch,
         QuickRow::ColourCorrection,
         QuickRow::Rumble,
         QuickRow::DateTime,
@@ -50,6 +51,7 @@ impl QuickRow {
         match self {
             QuickRow::FastForward => "快速前进",
             QuickRow::FastForwardSound => "快进声音",
+            QuickRow::FastForwardPitch => "快进原调",
             QuickRow::ColourCorrection => "色彩校正",
             QuickRow::Rumble => "震动",
             QuickRow::DateTime => "日期与时间",
@@ -133,9 +135,9 @@ impl QuickValue {
     }
 }
 
-/// A size up from the power menu's rows: 30 px type on 52 px rows, which the full width has
-/// room for.
-pub const QUICK_PITCH: f32 = 52.0;
+/// A size up from the power menu's rows: 30 px type on 48 px rows. Seven rows still
+/// leave space above the legend.
+pub const QUICK_PITCH: f32 = 48.0;
 /// The first row's top, with all of them centred on the panel: derived from `QuickRow::ALL`, so
 /// a row added or removed moves the whole menu rather than hanging one off the bottom.
 pub const QUICK_TOP: f32 = (OUT_H as f32 - QUICK_PITCH * QuickRow::ALL.len() as f32) / 2.0;
@@ -340,4 +342,17 @@ fn push(out: &mut Vec<Draw>, tex: TexId, x: f32, y: f32, w: u32, h: u32) {
         tex,
         alpha: 1.0,
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn seven_rows_fit_clear_of_the_legend() {
+        assert!(row_top(QuickRow::FastForward) >= 0.0);
+        let last_height = quick_label_face(QuickRow::About).h;
+        assert!(row_top(QuickRow::About) + TYPE_DROP + (last_height as f32) < LEGEND_Y);
+        assert!(LEGEND_Y + quick_legend_faces()[0].h as f32 <= OUT_H as f32);
+    }
 }

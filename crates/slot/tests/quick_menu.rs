@@ -116,6 +116,7 @@ fn up_and_down_move_the_bar_and_stop_at_the_ends() {
     );
     for want in [
         QuickRow::FastForwardSound,
+        QuickRow::FastForwardPitch,
         QuickRow::ColourCorrection,
         QuickRow::Rumble,
         QuickRow::DateTime,
@@ -173,9 +174,10 @@ fn rumble_and_fast_forward_sound_flip_on_either_arrow_and_save() {
     );
     press(&mut a, Btn::Right);
     assert_eq!(card(&d), (false, true));
-    // Two rows down: Colour Correction now sits between the Fast Forward pair and Rumble.
-    press(&mut a, Btn::Down);
-    press(&mut a, Btn::Down);
+    // Past pitch and colour correction to Rumble.
+    for _ in 0..3 {
+        press(&mut a, Btn::Down);
+    }
     press(&mut a, Btn::Right);
     assert_eq!(card(&d), (false, false));
     assert!(!a.rumble_enabled());
@@ -188,6 +190,26 @@ fn rumble_and_fast_forward_sound_flip_on_either_arrow_and_save() {
 /// value, and every press is on the card before the menu closes. The menu is only ever open
 /// with nothing seated, so the card is the whole of where a change has to survive: the next
 /// cart in is what reads it.
+#[test]
+fn fast_forward_pitch_flips_and_survives_restart_without_enabling_sound() {
+    let (d, mut a, _) = on_carousel();
+    open_at(&mut a, QuickRow::FastForwardPitch);
+    assert_eq!(
+        a.quick_value(QuickRow::FastForwardPitch),
+        Some(QuickValue::Off)
+    );
+    press(&mut a, Btn::Right);
+    assert_eq!(
+        a.quick_value(QuickRow::FastForwardPitch),
+        Some(QuickValue::On)
+    );
+    let state = read_slot_state(d.path());
+    assert!(state.ff_pitch);
+    assert!(!state.ff_sound);
+    press(&mut a, Btn::Left);
+    assert!(!read_slot_state(d.path()).ff_pitch);
+}
+
 #[test]
 fn colour_correction_flips_on_either_arrow_and_saves() {
     let (d, mut a, _) = on_carousel();

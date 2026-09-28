@@ -65,6 +65,7 @@ fn the_fast_forward_settings_reach_the_emulator() {
             clock_set: true,
             ff_speed: 2,
             ff_sound: true,
+            ff_pitch: true,
             ..Default::default()
         },
     )
@@ -86,6 +87,7 @@ fn the_fast_forward_settings_reach_the_emulator() {
         "the chosen speed never reached the core"
     );
     assert!(emu.ff_sound(), "fast forward sound never reached the core");
+    assert!(emu.ff_pitch(), "fast forward pitch never reached the core");
 }
 
 fn step(s: &mut Session, now: &mut Millis, ev: Option<RawEvent>) {

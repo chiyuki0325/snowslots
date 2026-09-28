@@ -854,6 +854,7 @@ impl App {
         match row {
             QuickRow::FastForward => QuickValue::speed(self.state.ff_speed),
             QuickRow::FastForwardSound => Some(QuickValue::flag(self.state.ff_sound)),
+            QuickRow::FastForwardPitch => Some(QuickValue::flag(self.state.ff_pitch)),
             QuickRow::ColourCorrection => Some(QuickValue::flag(self.state.colour_correction)),
             QuickRow::Rumble => Some(QuickValue::flag(self.state.rumble)),
             QuickRow::DateTime | QuickRow::About => None,
@@ -1285,6 +1286,10 @@ impl App {
     /// Whether fast forward is heard, sped up, rather than dropped.
     pub fn ff_sound(&self) -> bool {
         self.state.ff_sound
+    }
+
+    pub fn ff_pitch(&self) -> bool {
+        self.state.ff_pitch
     }
 
     /// Whether a core loaded from here on is asked to tint its picture like the console's own
@@ -1736,6 +1741,7 @@ impl App {
             QuickRow::About => self.phase = Phase::About,
             QuickRow::FastForward
             | QuickRow::FastForwardSound
+            | QuickRow::FastForwardPitch
             | QuickRow::ColourCorrection
             | QuickRow::Rumble => {}
         }
@@ -1756,6 +1762,7 @@ impl App {
             }
             // Two values each, so either arrow is the other one.
             QuickRow::FastForwardSound => s.ff_sound = !s.ff_sound,
+            QuickRow::FastForwardPitch => s.ff_pitch = !s.ff_pitch,
             QuickRow::ColourCorrection => {
                 s.colour_correction = !s.colour_correction;
                 // Carried to the running core as well as written down. Without this the row

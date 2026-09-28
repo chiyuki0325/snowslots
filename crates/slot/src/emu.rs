@@ -14,6 +14,7 @@ use crate::audio::Ring;
 use crate::drc::{drc_ratio, drc_target};
 use crate::frames::{FrameRef, Frames};
 use crate::persist::Snapshot;
+use crate::pitch::PitchStretch;
 use crate::resample::Resampler;
 use crate::rewind::{RewindThread, REWIND_BYTES};
 
@@ -180,6 +181,7 @@ struct Shared {
     fast_steps: AtomicU32,
     /// Whether fast forward is heard, sped up, rather than dropped.
     ff_sound: AtomicBool,
+    ff_pitch: AtomicBool,
     /// Frames this core has published. Counted rather than peeked because `Frames::latest`
     /// consumes: anything that asks the buffer a question steals a frame from the renderer.
     published: AtomicU64,
@@ -243,6 +245,7 @@ impl EmuHandle {
             volume: AtomicU8::new(100),
             fast_steps: AtomicU32::new(FAST_STEPS),
             ff_sound: AtomicBool::new(false),
+            ff_pitch: AtomicBool::new(false),
             published: AtomicU64::new(0),
             resume_refused: AtomicBool::new(false),
             sav_refused: AtomicBool::new(false),
@@ -422,6 +425,14 @@ impl EmuHandle {
 
     pub fn ff_sound(&self) -> bool {
         self.shared.ff_sound.load(Ordering::Relaxed)
+    }
+
+    pub fn set_ff_pitch(&self, on: bool) {
+        self.shared.ff_pitch.store(on, Ordering::Relaxed);
+    }
+
+    pub fn ff_pitch(&self) -> bool {
+        self.shared.ff_pitch.load(Ordering::Relaxed)
     }
 
     pub fn set_rewinding(&self, on: bool) {
@@ -622,6 +633,9 @@ impl Worker {
             .store(CoreState::Ready as u8, Ordering::Release);
 
         let mut out = Vec::new();
+        let mut stretched = Vec::new();
+        let mut pitch = PitchStretch::default();
+        let mut pitch_active = false;
         // What the ring was last told: muted, and idle. Neither, to begin with.
         let mut gated = (false, false);
         let rewind = RewindThread::spawn(REWIND_BYTES);
@@ -753,6 +767,14 @@ impl Worker {
             // never owed, so a session where anyone touched the trigger reported a fault on
             // its way out and the counter stopped meaning "the emulator could not keep up".
             let rewinding = speed != Speed::Paused && self.shared.rewind.load(Ordering::Relaxed);
+            let pitch_on = speed == Speed::Fast
+                && ff_sound
+                && !rewinding
+                && self.shared.ff_pitch.load(Ordering::Relaxed);
+            if pitch_on != pitch_active {
+                pitch.reset();
+                pitch_active = pitch_on;
+            }
             let gate = (
                 speed == Speed::Fast && !ff_sound,
                 speed == Speed::Paused || rewinding,
@@ -961,17 +983,24 @@ impl Worker {
                 }
 
                 let audio = core.take_audio();
-                // Fast forward drops the core's audio unless its sound is on. On, the several
-                // frames of audio a fast present produced are squeezed into one present's
-                // worth by stepping through them that many times as fast: it comes out faster
-                // and higher, at the device's own pace rather than backing the ring up.
+                // Fast forward sound either resamples all game frames into one present (the
+                // original raised-pitch effect), or compresses time before resampling so the
+                // individual notes remain near their original pitch.
                 if speed == Speed::Normal || ff_sound {
                     let target = drc_target(ring.capacity_frames());
                     let queued = ring.queued_frames();
-                    // `ran`, not the ceiling: the audio squeezed into this present is however
-                    // many frames of it the present actually produced.
-                    resampler.set_ratio(drc_ratio(queued, target) / f64::from(ran));
-                    resampler.process(&audio, &mut out);
+                    let source = if pitch_on {
+                        pitch.process(&audio, ran, &mut stretched);
+                        stretched.as_slice()
+                    } else {
+                        audio.as_slice()
+                    };
+                    // `ran`, not the ceiling: heavy content may run fewer game frames than
+                    // requested. The pitch-preserving path already compressed by that factor.
+                    resampler.set_ratio(
+                        drc_ratio(queued, target) / if pitch_on { 1.0 } else { f64::from(ran) },
+                    );
+                    resampler.process(source, &mut out);
                     crate::audio::volume::apply(
                         &mut out,
                         self.shared.volume.load(Ordering::Relaxed),

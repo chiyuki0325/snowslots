@@ -449,6 +449,7 @@ impl Session {
             // can afford, up to this.
             emu.set_fast_steps(u32::from(self.app.ff_speed()));
             emu.set_ff_sound(self.app.ff_sound());
+            emu.set_ff_pitch(self.app.ff_pitch());
             // Loading a core and running one are separate things. The insert animation
             // hides the load, but a core left running behind the cart burns through the
             // GBA bios intro, so the reveal catches only its tail. Paused until the cart is

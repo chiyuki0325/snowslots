@@ -86,8 +86,8 @@ fn the_fast_forward_row_offers_the_four_ceilings_the_card_can_hold() {
     }
 }
 
-/// The order the user chose on 2026-09-15, top to bottom, with Colour Correction added on
-/// 2026-09-16 between the Fast Forward pair and Rumble. `QuickRow::ALL`'s own comment is where
+/// The fast-forward rows stay together above Colour Correction and Rumble.
+/// `QuickRow::ALL`'s own comment is where
 /// that position is argued; this is what holds it.
 #[test]
 fn the_rows_run_in_the_order_the_user_chose() {
@@ -97,6 +97,7 @@ fn the_rows_run_in_the_order_the_user_chose() {
         [
             "快速前进",
             "快进声音",
+            "快进原调",
             "色彩校正",
             "震动",
             "日期与时间",

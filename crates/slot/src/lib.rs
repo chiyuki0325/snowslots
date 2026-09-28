@@ -18,6 +18,7 @@ pub mod link_radio;
 pub mod link_screen;
 pub mod link_start;
 pub mod persist;
+pub mod pitch;
 pub mod resample;
 pub mod rewind;
 pub mod root;

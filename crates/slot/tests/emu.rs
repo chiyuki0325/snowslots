@@ -518,6 +518,7 @@ fn heard_per_present(emu: &EmuHandle, sink: &StubSink, heard: &AtomicUsize) -> f
 fn fast_forward_is_silent_while_its_sound_is_off() {
     let (emu, sink, heard) = spawn_heard();
     emu.set_ff_sound(false);
+    emu.set_ff_pitch(true);
     emu.set_speed(Speed::Fast);
     assert!(wait_for(|| sink.muted()), "fast forward did not mute");
     let per = heard_per_present(&emu, &sink, &heard);
@@ -540,6 +541,22 @@ fn fast_forward_sound_plays_sped_up_in_real_time() {
         let per = heard_per_present(&emu, &sink, &heard);
         assert!(
             (per / real_time - 1.0).abs() < 0.05,
+            "{per:.0} frames a present at {steps}x, against {real_time:.0} in real time"
+        );
+    }
+}
+
+#[test]
+fn fast_forward_with_pitch_keeps_audio_at_device_pace() {
+    let (emu, sink, heard) = spawn_heard();
+    emu.set_ff_sound(true);
+    emu.set_ff_pitch(true);
+    let real_time = 32_768.0 / 60.0;
+    for steps in [2, 4, 6] {
+        emu.set_fast_steps(steps);
+        let per = heard_per_present(&emu, &sink, &heard);
+        assert!(
+            (per / real_time - 1.0).abs() < 0.08,
             "{per:.0} frames a present at {steps}x, against {real_time:.0} in real time"
         );
     }

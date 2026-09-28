@@ -79,6 +79,8 @@ pub struct SlotState {
     pub ff_speed: u8,
     /// Whether fast forward is heard, sped up, rather than dropped.
     pub ff_sound: bool,
+    /// Compress fast-forward audio without raising its pitch. Off keeps the old sped-up sound.
+    pub ff_pitch: bool,
     /// Whether the core is asked to simulate the washed-out tint of the console's own LCD.
     ///
     /// A device-wide preference rather than a per-cart one, because the quick menu is only
@@ -97,7 +99,7 @@ pub struct SlotState {
 }
 
 /// Not derived. `read_slot_state` falls back here on a first boot, and all zeroes would
-/// be a device with the backlight off and the mixer muted. The quick menu's four settings
+/// be a device with the backlight off and the mixer muted. The quick menu's settings
 /// default to what slot did before they were settings.
 impl Default for SlotState {
     fn default() -> Self {
@@ -113,6 +115,7 @@ impl Default for SlotState {
             rumble: true,
             ff_speed: FF_SPEED_DEFAULT,
             ff_sound: false,
+            ff_pitch: false,
             colour_correction: false,
         }
     }
@@ -132,7 +135,7 @@ pub fn read_slot_state(root: &Path) -> SlotState {
 
 pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     let text = format!(
-        "cart={}\ncart_platform={}\nbrightness={}\nblue_light={}\nvolume={}\nmuted={}\nclock_set={}\nutc_offset_min={}\nrumble={}\nff_speed={}\nff_sound={}\ncolour_correction={}\n",
+        "cart={}\ncart_platform={}\nbrightness={}\nblue_light={}\nvolume={}\nmuted={}\nclock_set={}\nutc_offset_min={}\nrumble={}\nff_speed={}\nff_sound={}\nff_pitch={}\ncolour_correction={}\n",
         s.cart.as_deref().unwrap_or(""),
         s.cart_platform.filter(|_| s.cart.is_some()).map_or(String::new(), |p| p.dir_name().to_ascii_lowercase()),
         s.brightness,
@@ -144,6 +147,7 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
         s.rumble as u8,
         s.ff_speed,
         s.ff_sound as u8,
+        s.ff_pitch as u8,
         s.colour_correction as u8
     );
     atomic_write(&state_path(root), text.as_bytes())
@@ -170,6 +174,7 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut rumble = None;
     let mut ff_speed = None;
     let mut ff_sound = None;
+    let mut ff_pitch = None;
     let mut colour_correction = None;
     for line in text.lines().filter(|l| !l.is_empty()) {
         let Some((key, value)) = line.split_once('=') else {
@@ -192,6 +197,7 @@ fn parse(text: &str) -> Option<SlotState> {
             "rumble" => rumble = flag(value),
             "ff_speed" => ff_speed = ff_speed_value(value),
             "ff_sound" => ff_sound = flag(value),
+            "ff_pitch" => ff_pitch = flag(value),
             "colour_correction" => colour_correction = flag(value),
             _ => {}
         }
@@ -210,6 +216,7 @@ fn parse(text: &str) -> Option<SlotState> {
         rumble: rumble.unwrap_or(fallback.rumble),
         ff_speed: ff_speed.unwrap_or(fallback.ff_speed),
         ff_sound: ff_sound.unwrap_or(fallback.ff_sound),
+        ff_pitch: ff_pitch.unwrap_or(fallback.ff_pitch),
         colour_correction: colour_correction.unwrap_or(fallback.colour_correction),
     })
 }
