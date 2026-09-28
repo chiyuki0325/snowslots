@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::atomic::atomic_write;
+use crate::Platform;
 
 pub const BRIGHTNESS_MAX: u8 = 9;
 pub const BLUE_LIGHT_MAX: u8 = 9;
@@ -58,6 +59,8 @@ pub const FF_SPEED_DEFAULT: u8 = 6;
 pub struct SlotState {
     /// Filename stem. `None` is an empty slot, which is the shelf.
     pub cart: Option<String>,
+    /// The seated cart's directory; absent on cards written before platforms were recorded.
+    pub cart_platform: Option<Platform>,
     pub brightness: u8,
     pub blue_light: u8,
     pub volume: u8,
@@ -100,6 +103,7 @@ impl Default for SlotState {
     fn default() -> Self {
         SlotState {
             cart: None,
+            cart_platform: None,
             brightness: 5,
             blue_light: 0,
             volume: 60,
@@ -128,8 +132,9 @@ pub fn read_slot_state(root: &Path) -> SlotState {
 
 pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     let text = format!(
-        "cart={}\nbrightness={}\nblue_light={}\nvolume={}\nmuted={}\nclock_set={}\nutc_offset_min={}\nrumble={}\nff_speed={}\nff_sound={}\ncolour_correction={}\n",
+        "cart={}\ncart_platform={}\nbrightness={}\nblue_light={}\nvolume={}\nmuted={}\nclock_set={}\nutc_offset_min={}\nrumble={}\nff_speed={}\nff_sound={}\ncolour_correction={}\n",
         s.cart.as_deref().unwrap_or(""),
+        s.cart_platform.filter(|_| s.cart.is_some()).map_or(String::new(), |p| p.dir_name().to_ascii_lowercase()),
         s.brightness,
         s.blue_light,
         s.volume,
@@ -154,7 +159,8 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
 /// unreadable reads as its own default and leaves the rest of the card alone.
 fn parse(text: &str) -> Option<SlotState> {
     let mut cart = None;
-    let mut other_platform = false;
+    let mut cart_platform = None;
+    let mut unknown_platform = false;
     let mut brightness = None;
     let mut blue_light = None;
     let mut volume = None;
@@ -171,11 +177,11 @@ fn parse(text: &str) -> Option<SlotState> {
         };
         match key {
             "cart" => cart = Some(value.to_string()),
-            // Written by the builds that ran Game Boy carts too, naming the folder the seated cart
-            // came from. Any answer but `gba` was a Game Boy cart, and its stem must not seat
-            // a GBA cart that happens to share it.
             "cart_platform" => {
-                other_platform = !value.is_empty() && !value.eq_ignore_ascii_case("gba")
+                cart_platform = Platform::ALL
+                    .into_iter()
+                    .find(|p| value.eq_ignore_ascii_case(p.dir_name()));
+                unknown_platform = !value.is_empty() && cart_platform.is_none();
             }
             "brightness" => brightness = Some(level(value, BRIGHTNESS_MAX)?),
             "blue_light" => blue_light = Some(level(value, BLUE_LIGHT_MAX)?),
@@ -193,7 +199,8 @@ fn parse(text: &str) -> Option<SlotState> {
     let cart = cart?;
     let fallback = SlotState::default();
     Some(SlotState {
-        cart: (!cart.is_empty() && !other_platform).then_some(cart),
+        cart: (!cart.is_empty() && !unknown_platform).then_some(cart),
+        cart_platform,
         brightness: brightness?,
         blue_light: blue_light?,
         volume: volume?,

@@ -191,7 +191,7 @@ fn report_missing(core: Core, paths: &[PathBuf]) {
 /// with nothing to set is a thing this has had to express once and may again.
 pub fn colour_option(which: Core, on: bool) -> Option<(&'static str, &'static str)> {
     match which {
-        Core::Mgba => Some(("mgba_color_correction", if on { "GBA" } else { "OFF" })),
+        Core::Mgba => Some(("mgba_color_correction", if on { "Auto" } else { "OFF" })),
         Core::Gpsp => Some((
             "gpsp_color_correction",
             if on { "enabled" } else { "disabled" },
@@ -284,6 +284,11 @@ pub fn apply_core_options(
     // both spell it.
     core.set_option(&format!("{}_frameskip", which.as_str()), "auto");
     if which == Core::Mgba {
+        // Borders exceed the fixed 240x160 game buffer; use the GBC boot palette for
+        // monochrome carts instead of the core's grayscale fallback.
+        core.set_option("mgba_sgb_borders", "OFF");
+        core.set_option("mgba_gb_colors_preset", "1");
+        core.set_option("mgba_gb_colors", "GBC Dark Green →A");
         // mGBA declares colour correction as `OFF|GBA|GBC|Auto`, read off the vendored dylib
         // rather than guessed at, because nothing in this tree can tell a correct option value
         // from a typo: `SET_VARIABLES` is answered `true` and the declared list thrown away, so a
@@ -332,7 +337,7 @@ mod tests {
     fn each_core_spells_colour_correction_its_own_way() {
         assert_eq!(
             colour_option(Core::Mgba, true),
-            Some(("mgba_color_correction", "GBA"))
+            Some(("mgba_color_correction", "Auto"))
         );
         assert_eq!(
             colour_option(Core::Mgba, false),

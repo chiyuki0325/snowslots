@@ -7,10 +7,11 @@
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
-use slot_store::Cart;
+use slot_store::{Cart, Platform};
 use slot_ui::{board_face, cart_face, padded, CartFace, TURN_PAD};
 
 pub struct BuiltFaces {
+    pub platform: Platform,
     pub stem: String,
     pub board: CartFace,
     pub lid: CartFace,
@@ -38,6 +39,7 @@ impl FaceBuilder {
                         cart = newer;
                     }
                     let faces = BuiltFaces {
+                        platform: cart.platform,
                         stem: cart.stem.clone(),
                         board: board_face(&cart),
                         lid: padded(&cart_face(&cart), TURN_PAD),

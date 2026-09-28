@@ -11,6 +11,7 @@ use crate::emu::{CoreState, EmuHandle, Speed};
 use crate::frames::FrameRef;
 use crate::input::Pad;
 use crate::persist;
+use crate::video_mode;
 
 /// Everything the frontend is that is not a window: the app, the core behind it, and the
 /// gesture layer between the two. The binary owns the GL and hands raw events in.
@@ -167,6 +168,13 @@ impl Session {
         for action in actions {
             self.act(action);
         }
+        self.sync_pad();
+    }
+
+    fn sync_pad(&mut self) {
+        for &btn in self.app.taken_buttons() {
+            self.pad.apply(Action::GbaUp(btn));
+        }
         if let Some(emu) = &self.emu {
             emu.set_input(self.pad.mask());
         }
@@ -228,6 +236,10 @@ impl Session {
         }
         if menu || self.overlaid() {
             self.pad.clear();
+        } else if self.app.takes_from_the_game(action) {
+            if let Action::GbaDown(btn) | Action::GbaUp(btn) = action {
+                self.pad.apply(Action::GbaUp(btn));
+            }
         } else {
             self.pad.apply(action);
         }
@@ -523,11 +535,11 @@ impl Session {
 
     /// `serial` is the `gpsp_serial` the core loads with.
     fn spawn_core(&mut self, stem: &str, serial: &'static str) {
-        let Some(rom) = self
+        let Some((rom, platform)) = self
             .app
             .seated_cart()
             .filter(|c| c.stem == stem)
-            .map(|c| c.rom.clone())
+            .map(|c| (c.rom.clone(), c.platform))
         else {
             return;
         };
@@ -538,15 +550,17 @@ impl Session {
         // `App` stores this rather than re-deriving it later, which is what makes that class of
         // drift structurally unreachable. `SLOT_CORE` is untouched by this: it names a dylib
         // rather than a `Core`, and its own doc comment already calls it the trap it is.
-        let core = slot_store::core_for(&self.root, stem);
+        let core = slot_store::core_for_platform(&self.root, stem, platform);
         self.app.set_core(core);
+        self.app
+            .set_video_mode(video_mode::video_mode_for(&self.root, platform, stem));
         // gpSP reads its link mode only while a game loads, so what this hands the core is what
         // the game links over from here on, and what `App` compares a picked link against.
         self.app.set_link_loaded(serial);
         // A clean start skips the state, it does not delete it: the file stays on the card
         // for the next tap to resume from.
         let resume = (!self.app.starting_clean())
-            .then(|| persist::read_resume(&self.root, core, stem))
+            .then(|| persist::read_resume_for_platform(&self.root, platform, core, stem))
             .flatten();
         // Colour correction is read here, at the one moment a libretro core reads an option at
         // all. The quick menu that sets it is only ever open on the shelf, with the core already
@@ -569,7 +583,7 @@ impl Session {
             opened.core,
             rom,
             self.sink.ring(),
-            persist::read_sav(&self.root, stem),
+            persist::read_sav_for_platform(&self.root, platform, stem),
             resume,
         );
         // A cart seated after the level was lowered has to start there, not at full.

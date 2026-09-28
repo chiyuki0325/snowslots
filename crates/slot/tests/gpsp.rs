@@ -198,7 +198,7 @@ fn mgba_is_given_its_own_frameskip_and_none_of_gpsps() {
 #[test]
 fn both_cores_are_told_about_colour_correction_in_their_own_words() {
     for (which, key, on, off) in [
-        (Core::Mgba, "mgba_color_correction", "GBA", "OFF"),
+        (Core::Mgba, "mgba_color_correction", "Auto", "OFF"),
         (Core::Gpsp, "gpsp_color_correction", "enabled", "disabled"),
     ] {
         let path = dylib_for(which);

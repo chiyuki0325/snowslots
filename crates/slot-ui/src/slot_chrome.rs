@@ -4,7 +4,7 @@ use slot_gfx::{Draw, TexId, OUT_H, OUT_W};
 use slot_store::Cart;
 use slot_store::Theme;
 
-use crate::cart::{label_colour, label_text, CART_H, CART_W};
+use crate::cart::{cart_box, label_colour, label_text, CART_W};
 use crate::icon::icon_box;
 use crate::shelf::{foot_y, rest_y};
 
@@ -177,7 +177,8 @@ impl SlotChrome<'_> {
         // on the way through rather than sliding behind a painted bar.
         draw_slot_back(chrome, out);
 
-        let (cw, ch) = (CART_W as f32, CART_H as f32);
+        let (cw, ch) = cart_box(self.cart.platform);
+        let (cw, ch) = (cw as f32, ch as f32);
 
         // Across, down and up to size on the one progress, so the cart arrives over the mouth
         // exactly as it reaches it. The slot is the middle of the device and cannot move, so a

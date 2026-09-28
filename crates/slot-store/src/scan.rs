@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -100,6 +101,7 @@ pub fn refresh(root: &Path) -> Result<Vec<Cart>, StoreError> {
 fn scan_fresh(root: &Path, history: &crate::PlayHistory) -> Result<Vec<Cart>, StoreError> {
     let mut carts = Vec::new();
     for platform in Platform::ALL {
+        let labels = scan_labels(root, platform);
         let dir = root.join("Games").join(platform.dir_name());
         let entries = match std::fs::read_dir(&dir) {
             Ok(d) => d,
@@ -127,16 +129,19 @@ fn scan_fresh(root: &Path, history: &crate::PlayHistory) -> Result<Vec<Cart>, St
             else {
                 continue;
             };
-            let label = root
-                .join("Labels")
-                .join(platform.dir_name())
-                .join(format!("{stem}.png"));
+            let label = labels.get(&stem).cloned();
             carts.push(Cart {
                 stem: stem.clone(),
                 platform,
-                title: header_title(&rom).unwrap_or_default(),
-                code: header_code(&rom).unwrap_or_default(),
-                label: label.is_file().then_some(label),
+                title: match platform {
+                    Platform::Gba => header_title(&rom).unwrap_or_default(),
+                    Platform::Gb | Platform::Gbc => crate::gb::title(&rom).unwrap_or_default(),
+                },
+                code: match platform {
+                    Platform::Gba => header_code(&rom).unwrap_or_default(),
+                    Platform::Gb | Platform::Gbc => String::new(),
+                },
+                label,
                 rom,
                 last_launched: history.get(&(platform, stem)).copied(),
             });
@@ -146,6 +151,61 @@ fn scan_fresh(root: &Path, history: &crate::PlayHistory) -> Result<Vec<Cart>, St
     Ok(carts)
 }
 
+pub fn find_file_by_stem(dir: &Path, stem: &str, extension: &str) -> Option<PathBuf> {
+    let direct = dir.join(format!("{stem}.{extension}"));
+    if direct.is_file() {
+        return Some(direct);
+    }
+    std::fs::read_dir(dir)
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .find(|path| {
+            if !path.is_file() || !has_extension(path, extension) {
+                return false;
+            }
+            path.file_name()
+                .and_then(decode_filename)
+                .and_then(|name| Path::new(&name).file_stem()?.to_str().map(str::to_string))
+                .is_some_and(|candidate| candidate == stem)
+        })
+}
+
+pub(crate) fn find_dir_by_name(dir: &Path, name: &str) -> Option<PathBuf> {
+    let direct = dir.join(name);
+    if direct.is_dir() {
+        return Some(direct);
+    }
+    std::fs::read_dir(dir)
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .find(|path| {
+            path.is_dir()
+                && path
+                    .file_name()
+                    .and_then(decode_filename)
+                    .is_some_and(|candidate| candidate == name)
+        })
+}
+
+fn scan_labels(root: &Path, platform: Platform) -> HashMap<String, PathBuf> {
+    let dir = root.join("Labels").join(platform.dir_name());
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return HashMap::new();
+    };
+    entries
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| !is_hidden(path) && path.is_file() && has_extension(path, "png"))
+        .filter_map(|path| {
+            let name = path.file_name().and_then(decode_filename)?;
+            let stem = Path::new(&name).file_stem()?.to_str()?.to_string();
+            Some((stem, path))
+        })
+        .collect()
+}
+
 fn merge_history(carts: &mut [Cart], history: &crate::PlayHistory) {
     for cart in carts {
         cart.last_launched = history.get(&(cart.platform, cart.stem.clone())).copied();
@@ -153,9 +213,13 @@ fn merge_history(carts: &mut [Cart], history: &crate::PlayHistory) {
 }
 
 fn is_rom(platform: Platform, path: &Path) -> bool {
-    let expected = match platform {
-        Platform::Gba => "gba",
-    };
+    match platform {
+        Platform::Gba => has_extension(path, "gba"),
+        Platform::Gb | Platform::Gbc => has_extension(path, "gb") || has_extension(path, "gbc"),
+    }
+}
+
+fn has_extension(path: &Path, expected: &str) -> bool {
     path.file_name()
         .and_then(decode_filename)
         .and_then(|name| {

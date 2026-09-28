@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use slot_store::{atomic_write, read_slot_state, write_slot_state, Core, StateRing, CART_DIR};
+use slot_store::{
+    atomic_write, find_file_by_stem, read_slot_state, write_slot_state, Core, Platform, StateRing,
+};
 
 /// What a save, a load or a flush needs from the emulator. The core runs on a worker thread
 /// and nothing above this trait knows that.
@@ -51,11 +53,22 @@ pub fn flush(
     state: Option<&[u8]>,
     sav: Option<&[u8]>,
 ) -> std::io::Result<()> {
+    flush_for_platform(root, Platform::Gba, core, stem, state, sav)
+}
+
+pub fn flush_for_platform(
+    root: &Path,
+    platform: Platform,
+    core: Core,
+    stem: &str,
+    state: Option<&[u8]>,
+    sav: Option<&[u8]>,
+) -> std::io::Result<()> {
     if let Some(state) = state {
-        StateRing::new(root, core, stem).write_resume(state)?;
+        StateRing::for_platform(root, platform, core, stem).write_resume(state)?;
     }
     if let Some(sav) = sav {
-        write_sav(root, stem, sav)?;
+        write_sav_for_platform(root, platform, stem, sav)?;
     }
     Ok(())
 }
@@ -73,9 +86,21 @@ pub fn eject(
     state: Option<&[u8]>,
     sav: Option<&[u8]>,
 ) -> std::io::Result<()> {
-    flush(root, core, stem, state, sav)?;
+    eject_for_platform(root, Platform::Gba, core, stem, state, sav)
+}
+
+pub fn eject_for_platform(
+    root: &Path,
+    platform: Platform,
+    core: Core,
+    stem: &str,
+    state: Option<&[u8]>,
+    sav: Option<&[u8]>,
+) -> std::io::Result<()> {
+    flush_for_platform(root, platform, core, stem, state, sav)?;
     let mut slot = read_slot_state(root);
     slot.cart = None;
+    slot.cart_platform = None;
     write_slot_state(root, &slot)
 }
 
@@ -99,8 +124,17 @@ pub fn eject(
 /// exact loss shape the guard above exists to stop, just reached from the one path it could
 /// not see.
 pub fn write_sav(root: &Path, stem: &str, sav: &[u8]) -> std::io::Result<bool> {
-    let path = sav_path(root, stem);
-    if let Some(old) = read_sav(root, stem) {
+    write_sav_for_platform(root, Platform::Gba, stem, sav)
+}
+
+pub fn write_sav_for_platform(
+    root: &Path,
+    platform: Platform,
+    stem: &str,
+    sav: &[u8],
+) -> std::io::Result<bool> {
+    let path = sav_path(root, platform, stem);
+    if let Some(old) = read_sav_for_platform(root, platform, stem) {
         if old == sav {
             return Ok(false);
         }
@@ -125,15 +159,14 @@ pub fn write_sav(root: &Path, stem: &str, sav: &[u8]) -> std::io::Result<bool> {
 /// same battery bytes, so a card carrying either has a real save on it. Only `.sav` is ever
 /// written, which makes it the newer of the two whenever both exist.
 pub fn read_sav(root: &Path, stem: &str) -> Option<Vec<u8>> {
-    std::fs::read(sav_path(root, stem))
-        .or_else(|_| {
-            std::fs::read(
-                crate::root::saves_dir(root)
-                    .join(CART_DIR)
-                    .join(format!("{stem}.srm")),
-            )
-        })
-        .ok()
+    read_sav_for_platform(root, Platform::Gba, stem)
+}
+
+pub fn read_sav_for_platform(root: &Path, platform: Platform, stem: &str) -> Option<Vec<u8>> {
+    let dir = crate::root::saves_dir(root).join(platform.dir_name());
+    find_file_by_stem(&dir, stem, "sav")
+        .and_then(|path| std::fs::read(path).ok())
+        .or_else(|| find_file_by_stem(&dir, stem, "srm").and_then(|path| std::fs::read(path).ok()))
 }
 
 /// The counterpart to the resume write in `flush`. Without this the cart is seated on the
@@ -146,14 +179,22 @@ pub fn read_sav(root: &Path, stem: &str) -> Option<Vec<u8>> {
 /// resume directory and the dylib from disagreeing. `flush` and eject read the core `App` stored
 /// from that same resolution rather than asking again, which is what keeps them agreeing too.
 pub fn read_resume(root: &Path, core: Core, stem: &str) -> Option<Vec<u8>> {
-    StateRing::new(root, core, stem)
+    read_resume_for_platform(root, Platform::Gba, core, stem)
+}
+
+pub fn read_resume_for_platform(
+    root: &Path,
+    platform: Platform,
+    core: Core,
+    stem: &str,
+) -> Option<Vec<u8>> {
+    StateRing::for_platform(root, platform, core, stem)
         .read_resume()
         .ok()
         .flatten()
 }
 
-fn sav_path(root: &Path, stem: &str) -> PathBuf {
-    crate::root::saves_dir(root)
-        .join(CART_DIR)
-        .join(format!("{stem}.sav"))
+fn sav_path(root: &Path, platform: Platform, stem: &str) -> PathBuf {
+    let dir = crate::root::saves_dir(root).join(platform.dir_name());
+    find_file_by_stem(&dir, stem, "sav").unwrap_or_else(|| dir.join(format!("{stem}.sav")))
 }

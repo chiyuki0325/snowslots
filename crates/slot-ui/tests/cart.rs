@@ -1,7 +1,7 @@
 use slot_store::scan;
 use slot_ui::{
     cart_face, clean_label, foot_y, label_colour, label_panel, label_text, rest_y, silhouette,
-    CART_H, CART_W, LABEL_H, LABEL_W, LABEL_X, LABEL_Y, MOUTH_H, OUT_H, OUT_W, PLATE_H,
+    CART_H, CART_W, GB_CART_H, LABEL_H, LABEL_W, LABEL_X, LABEL_Y, MOUTH_H, OUT_H, OUT_W, PLATE_H,
 };
 use tempfile::TempDir;
 
@@ -322,6 +322,15 @@ fn the_cartridge_is_centred_on_the_row_and_clears_both_the_plate_and_the_slot() 
         foot < lip,
         "the foot at {foot} has reached the lip at {lip}"
     );
+}
+
+#[test]
+fn tall_game_boy_carts_rise_from_the_gba_baseline() {
+    let gba_foot = foot_y(CART_H as f32);
+    let gb_top = rest_y(GB_CART_H as f32);
+    assert_eq!(gb_top + GB_CART_H as f32, gba_foot);
+    assert!(gb_top > PLATE_H, "the Game Boy cart overlaps the HUD");
+    assert!(gb_top < rest_y(CART_H as f32));
 }
 
 /// A side cart is dimmed by sitting a translucent face on this, not by letting the ground

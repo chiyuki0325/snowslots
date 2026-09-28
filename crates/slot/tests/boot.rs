@@ -341,3 +341,41 @@ fn a_cached_boot_waits_for_the_frontend_before_walking_the_card() {
         .expect("background library refresh");
     assert_eq!(refreshed.len(), 3);
 }
+
+#[test]
+fn resume_selects_the_named_platform_when_stems_collide() {
+    let d = tmp_root_with_carts(&["Tetris", "Other"]);
+    std::fs::create_dir_all(d.path().join("Games/GB")).unwrap();
+    std::fs::write(d.path().join("Games/GB/Tetris.gb"), vec![0; 0x150]).unwrap();
+    let state = SlotState {
+        cart: Some("Tetris".into()),
+        cart_platform: Some(Platform::Gb),
+        clock_set: true,
+        ..Default::default()
+    };
+    write_slot_state(d.path(), &state).unwrap();
+    let app = App::boot(d.path());
+    assert_eq!(app.seated_cart().unwrap().platform, Platform::Gb);
+    assert_eq!(
+        app.seated_cart().unwrap().rom,
+        d.path().join("Games/GB/Tetris.gb")
+    );
+}
+
+#[test]
+fn missing_platform_does_not_resume_another_cart_with_the_same_stem() {
+    let d = tmp_root_with_carts(&["Tetris", "Other"]);
+    write_slot_state(
+        d.path(),
+        &SlotState {
+            cart: Some("Tetris".into()),
+            cart_platform: Some(Platform::Gb),
+            clock_set: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let app = App::boot(d.path());
+    assert!(matches!(app.phase(), Phase::Shelf));
+    assert!(app.seated_cart().is_none());
+}

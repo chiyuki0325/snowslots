@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::Platform;
+
 pub const SELECTED_CORE_FILE: &str = "System/selected_core.ini";
 
 /// Which emulator runs a cart. mGBA is the default, because it carries the emulated cable; gpSP
@@ -40,6 +42,10 @@ impl Core {
         }
     }
 
+    pub fn runs(self, platform: Platform) -> bool {
+        self == Core::Mgba || platform == Platform::Gba
+    }
+
     pub fn parse(s: &str) -> Option<Core> {
         match s.trim().to_ascii_lowercase().as_str() {
             "mgba" => Some(Core::Mgba),
@@ -67,6 +73,16 @@ pub fn core_for(root: &Path, stem: &str) -> Core {
         .as_deref()
         .and_then(Core::parse)
         .unwrap_or_default()
+}
+
+/// Resolve a core with the platform's capabilities taking precedence over a hand-edited ini.
+pub fn core_for_platform(root: &Path, stem: &str, platform: Platform) -> Core {
+    let selected = core_for(root, stem);
+    if selected.runs(platform) {
+        selected
+    } else {
+        Core::Mgba
+    }
 }
 
 /// Set one cart's core, leaving the rest of the file exactly as it was.

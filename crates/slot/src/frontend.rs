@@ -6,14 +6,14 @@ use std::time::{Duration, Instant};
 use slot_gfx::{Compositor, Draw, TexId, OUT_H, OUT_W};
 use slot_input::{InputSource, Millis};
 use slot_power::{Platform, Power};
-use slot_store::{format_stamp, Cart};
+use slot_store::{format_stamp, Cart, Platform as CartPlatform};
 use slot_ui::{
     arrows_hint_face, badge_face, cart_face, cart_shadow, chip_face, chip_shadow_face,
-    date_time_text, hhmm, hint_face, icon_face, menu_face, photo_face, quick_caret_face,
-    quick_label_face, quick_legend_faces, quick_value_face, set_clock_hint_face, socket_face,
-    sticker_face, title_face, toast_face, wallpaper_face, word_face, Icon, LinkBadge, PowerChoice,
-    QuickMenuFaces, QuickRow, QuickValue, StickerFields, Toast, UndoFace, ALERT_PX, BOLT_PX,
-    HUD_ICON_PX, HUD_INK, LEGEND,
+    date_time_text, gb_cart_shadow, hhmm, hint_face, icon_face, menu_face, photo_face,
+    quick_caret_face, quick_label_face, quick_legend_faces, quick_value_face, set_clock_hint_face,
+    socket_face, sticker_face, title_face, toast_face, wallpaper_face, word_face, Icon, LinkBadge,
+    PowerChoice, QuickMenuFaces, QuickRow, QuickValue, StickerFields, Toast, UndoFace, ALERT_PX,
+    BOLT_PX, HUD_ICON_PX, HUD_INK, LEGEND,
 };
 
 use crate::app::{App, LinkRow, Phase};
@@ -62,11 +62,11 @@ pub struct Frontend {
     /// Whether the link art has been uploaded and handed to `App` already.
     link_art_done: bool,
     /// The cart last asked for.
-    core_asked: Option<String>,
+    core_asked: Option<(CartPlatform, String)>,
     /// The open cart and its lid, and which cart they were built for.
     core_board_tex: Option<TexId>,
     core_lid_tex: Option<TexId>,
-    core_built: Option<String>,
+    core_built: Option<(CartPlatform, String)>,
     /// The undo cap's label, which changes with what is on offer.
     undo_tex: Option<TexId>,
     switcher: Switcher,
@@ -316,6 +316,11 @@ impl Frontend {
         let shadow = cart_shadow();
         let id = compositor.create_texture(shadow.w, shadow.h, &shadow.rgba);
         self.session.app_mut().set_cart_shadow(id);
+        let gb = gb_cart_shadow(slot_ui::GbShell::Notched);
+        let gbc = gb_cart_shadow(slot_ui::GbShell::Rounded);
+        let gb_id = compositor.create_texture(gb.w, gb.h, &gb.rgba);
+        let gbc_id = compositor.create_texture(gbc.w, gbc.h, &gbc.rgba);
+        self.session.app_mut().set_gb_cart_shadows(gb_id, gbc_id);
         // `draw_gauge` now draws the bolt beside the capsule, on the housing, in its own
         // reserved slot rather than over the fill. The housing tint was only ever needed to
         // hide the bolt inside the fill it sat on; out here it sits where every other HUD
@@ -378,6 +383,7 @@ impl Frontend {
         compositor.set_blue_light(self.session.app().blue_light());
         compositor.set_shake(self.session.app().screen_shake());
         compositor.set_screen_power(self.session.app().screen_power());
+        compositor.set_game_source_rect(self.session.app().source_rect());
         compositor.begin_frame();
         if let Some(frame) = self.session.frame() {
             compositor.upload_game(&frame);
@@ -665,17 +671,15 @@ fn sync_core_picker(
     app: &mut App,
     compositor: &mut Compositor,
     builder: &FaceBuilder,
-    asked: &mut Option<String>,
+    asked: &mut Option<(CartPlatform, String)>,
     board: &mut Option<TexId>,
     lid: &mut Option<TexId>,
-    built: &mut Option<String>,
+    built: &mut Option<(CartPlatform, String)>,
 ) {
-    let highlighted = app.selected_stem().map(str::to_string);
+    let selected = app.selected_cart();
+    let highlighted = selected.map(|cart| (cart.platform, cart.stem.clone()));
     if highlighted.is_some() && *asked != highlighted {
-        if let Some(cart) = app
-            .carts()
-            .find(|c| highlighted.as_deref() == Some(c.stem.as_str()))
-        {
+        if let Some(cart) = selected {
             builder.request(cart.clone());
         }
         *asked = highlighted.clone();
@@ -684,7 +688,8 @@ fn sync_core_picker(
         return;
     };
     // A build for a cart the caret has since left is dropped; the one it is on is on its way.
-    if highlighted.as_deref() != Some(faces.stem.as_str()) || *built == highlighted {
+    if highlighted.as_ref() != Some(&(faces.platform, faces.stem.clone())) || *built == highlighted
+    {
         return;
     }
     let board_id = upload_rgba(
@@ -696,7 +701,7 @@ fn sync_core_picker(
     );
     let lid_id = upload_rgba(compositor, lid, faces.lid.w, faces.lid.h, &faces.lid.rgba);
     app.set_core_board_faces(board_id, lid_id);
-    *built = Some(faces.stem);
+    *built = Some((faces.platform, faces.stem));
 }
 
 fn upload(compositor: &mut Compositor, slot: &mut Option<TexId>, face: slot_ui::UndoFace) -> TexId {

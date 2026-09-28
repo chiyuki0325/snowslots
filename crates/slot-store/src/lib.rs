@@ -1,5 +1,6 @@
 mod atomic;
 mod core;
+pub mod gb;
 mod gba;
 pub mod ini;
 mod library_cache;
@@ -12,14 +13,16 @@ mod stamp;
 mod theme;
 
 pub use atomic::atomic_write;
-pub use core::{core_for, read_selected_cores, write_selected_core, Core, SELECTED_CORE_FILE};
+pub use core::{
+    core_for, core_for_platform, read_selected_cores, write_selected_core, Core, SELECTED_CORE_FILE,
+};
 pub use gba::{header_clean, header_code, header_title};
 pub use platform::Platform;
 pub use play_history::{read_play_history, write_last_played, write_play_history, PlayHistory};
 pub use ring::{StateEntry, StateRing, RING_MAX};
 pub use scan::{
-    initial, is_hidden, name_group, name_sort_key, refresh, scan, scan_fast, sort_key, Cart,
-    NameGroup, NameSortKey, ScanResult, StoreError,
+    find_file_by_stem, initial, is_hidden, name_group, name_sort_key, refresh, scan, scan_fast,
+    sort_key, Cart, NameGroup, NameSortKey, ScanResult, StoreError,
 };
 pub use slot_state::{
     read_slot_state, write_slot_state, SlotState, BLUE_LIGHT_MAX, BRIGHTNESS_MAX, FF_SPEEDS,

@@ -45,15 +45,29 @@ fn a_gb18030_filename_is_decoded_for_the_shelf() {
     let filename = OsString::from_vec(vec![
         0xb1, 0xa6, 0xbf, 0xc9, 0xc3, 0xce, b'.', b'g', b'b', b'a',
     ]);
+    let label = OsString::from_vec(vec![
+        0xb1, 0xa6, 0xbf, 0xc9, 0xc3, 0xce, b'.', b'p', b'n', b'g',
+    ]);
     let mut rom = vec![0u8; 0x100];
     rom[0xa0..0xac].copy_from_slice(b"POKEMON     ");
     std::fs::write(d.path().join("Games/GBA").join(filename), rom).expect("write rom");
+    std::fs::create_dir_all(d.path().join("Labels/GBA")).expect("create labels");
+    std::fs::write(d.path().join("Labels/GBA").join(&label), b"label").expect("write label");
 
     let first = scan_fast(d.path()).unwrap();
 
     assert_eq!(first.carts.len(), 1);
     assert_eq!(first.carts[0].stem, "宝可梦");
-    assert!(scan_fast(d.path()).unwrap().from_cache);
+    assert_eq!(
+        first.carts[0].label.as_ref().unwrap().file_name(),
+        Some(label.as_os_str())
+    );
+    let cached = scan_fast(d.path()).unwrap();
+    assert!(cached.from_cache);
+    assert_eq!(
+        cached.carts[0].label.as_ref().unwrap().file_name(),
+        Some(label.as_os_str())
+    );
 }
 
 #[test]
@@ -66,11 +80,16 @@ fn a_utf8_filename_misread_as_latin1_is_recovered_for_the_shelf() {
         .map(char::from)
         .collect();
     write_rom(&d, &format!("GBA/{mojibake}.gba"), "POKEMON");
+    write_png(&d, &format!("GBA/{mojibake}.png"));
 
     let carts = scan(d.path()).unwrap();
 
     assert_eq!(carts.len(), 1);
     assert_eq!(carts[0].stem, "宝可梦");
+    assert_eq!(
+        carts[0].label.as_ref().unwrap().file_stem().unwrap(),
+        mojibake.as_str()
+    );
 }
 
 #[test]
@@ -115,11 +134,9 @@ fn a_root_with_no_games_directory_scans_as_empty() {
     assert!(scan(d.path()).unwrap().is_empty());
 }
 
-/// slot runs Game Boy Advance carts and nothing else. A card from the builds that ran Game Boy
-/// carts too keeps its `GB/` and `GBC/` folders untouched, and nothing in them reaches the shelf;
-/// nor does a Game Boy rom filed under `GBA/`.
+/// Each ROM belongs to the folder it was filed under; a GB ROM under GBA is not a cart.
 #[test]
-fn only_gba_roms_under_gba_are_carts() {
+fn scans_each_platform_without_accepting_a_misfiled_rom() {
     let d = tmp_root();
     write_rom(&d, "GBA/Metroid Fusion.gba", "METROID");
     for dir in ["Games/GB", "Games/GBC"] {
@@ -132,7 +149,11 @@ fn only_gba_roms_under_gba_are_carts() {
     let carts = scan(d.path()).unwrap();
 
     let stems: Vec<_> = carts.iter().map(|c| c.stem.as_str()).collect();
-    assert_eq!(stems, ["Metroid Fusion"]);
+    assert_eq!(stems, ["Chromatic", "Metroid Fusion", "Tetris"]);
+    assert_eq!(carts[0].platform, slot_store::Platform::Gbc);
+    assert_eq!(carts[1].platform, slot_store::Platform::Gba);
+    assert_eq!(carts[2].platform, slot_store::Platform::Gb);
+    assert!(carts[0].code.is_empty() && carts[2].code.is_empty());
 }
 
 /// `App::boot` does `scan(root).unwrap_or_default()`, so an `Err` out of `scan` is not a message

@@ -3,8 +3,9 @@ use std::collections::{HashMap, HashSet};
 use slot_gfx::{Draw, TexId, OUT_H, OUT_W};
 use slot_store::{name_group, name_sort_key, Cart, NameGroup, Platform};
 
-use crate::cart::{label_colour, label_text, CART_H, CART_W};
+use crate::cart::{cart_box, gb_shell_of, label_colour, label_text, CART_H, CART_W};
 use crate::hud::Millis;
+use crate::silhouette::GbShell;
 use crate::slot_chrome::draw_empty_slot;
 
 /// Distance between cart centres. Wider than a cart so the neighbours peek in at both
@@ -14,18 +15,19 @@ use crate::slot_chrome::draw_empty_slot;
 const PITCH: f32 = 240.0;
 const SIDE_SCALE: f32 = 0.78;
 const SIDE_ALPHA: f32 = 0.55;
-/// Where a cartridge of this height stands on the row: centred on the screen.
-///
-/// This is where the *full size* cartridge rests. A side cart is smaller, and it keeps its foot
-/// on the line the selection's foot is on rather than shrinking about the middle, so the row
-/// still reads as objects standing on a shelf: see `foot_y`.
+/// GBA carts stay centred. Taller GB/GBC carts stand on the same baseline rather than
+/// extending down toward the slot; their extra height rises into the space above the row.
+/// A side cart shrinks upward from that baseline, not around its centre.
 pub fn rest_y(h: f32) -> f32 {
-    (OUT_H as f32 - h) / 2.0
+    if h > CART_H as f32 {
+        (OUT_H as f32 + CART_H as f32) / 2.0 - h
+    } else {
+        (OUT_H as f32 - h) / 2.0
+    }
 }
 
-/// The line the cartridges stand on, which is `rest_y` plus that cartridge's own
-/// height. Asked with the cart's full height even for a shrunken neighbour: the foot stays put
-/// as a cart shrinks away, which is what stops the row reading as carts floating.
+/// The line the full-size cartridge stands on, also used for its smaller neighbours and
+/// for the first frame of the insertion animation.
 pub fn foot_y(h: f32) -> f32 {
     rest_y(h) + h
 }
@@ -95,6 +97,8 @@ pub struct Shelf {
     faces: HashMap<(Platform, String), TexId>,
     /// The cart silhouette in black, drawn under a dimmed cart.
     shadow: Option<TexId>,
+    gb_shadow: Option<TexId>,
+    gbc_shadow: Option<TexId>,
     /// The presses added up, in the same continuous coordinate `scroll` lives in, so it counts
     /// laps rather than wrapping. This is what the spring aims at — see `scroll_target` — because
     /// it is the only thing that remembers which button was pressed once the row has wrapped.
@@ -116,6 +120,8 @@ impl Shelf {
             sort: ShelfSort::Recent,
             faces: HashMap::new(),
             shadow: None,
+            gb_shadow: None,
+            gbc_shadow: None,
             ride: 0.0,
             vel: 0.0,
             held: None,
@@ -141,6 +147,11 @@ impl Shelf {
         self.shadow = Some(face);
     }
 
+    pub fn set_gb_shadows(&mut self, notched: TexId, rounded: TexId) {
+        self.gb_shadow = Some(notched);
+        self.gbc_shadow = Some(rounded);
+    }
+
     pub fn set_faces(&mut self, faces: Vec<TexId>) {
         self.faces = self
             .carts
@@ -156,13 +167,37 @@ impl Shelf {
 
     /// In `hints` order.
     pub fn find(&self, stem: &str) -> Option<(&Cart, Option<TexId>)> {
-        let cart = self.carts.iter().find(|c| c.stem == stem)?;
+        let cart = self
+            .carts
+            .get(self.index)
+            .filter(|c| c.stem == stem)
+            .or_else(|| self.carts.iter().find(|c| c.stem == stem))?;
         let face = self.faces.get(&(cart.platform, cart.stem.clone())).copied();
         Some((cart, face))
     }
 
     pub fn sort_mode(&self) -> ShelfSort {
         self.sort
+    }
+
+    /// Move to the next populated console without changing the current sort mode.
+    pub fn switch_platform(&mut self, by: i32) {
+        let Some(current) = self.carts.get(self.index).map(|c| c.platform) else {
+            return;
+        };
+        let at = Platform::ALL
+            .iter()
+            .position(|p| *p == current)
+            .unwrap_or(0) as i32;
+        for step in 1..Platform::ALL.len() {
+            let platform = Platform::ALL
+                [(at + by * step as i32).rem_euclid(Platform::ALL.len() as i32) as usize];
+            if let Some(index) = self.carts.iter().position(|c| c.platform == platform) {
+                self.release_hold();
+                self.select(index);
+                return;
+            }
+        }
     }
 
     pub fn cycle_sort(&mut self, by: i32) -> ShelfSort {
@@ -521,7 +556,11 @@ impl Shelf {
     /// The sum is `draw_row`'s own for the slot the selection is in, with `recede` at zero
     /// because nothing has begun to part yet, not a second copy of it.
     pub fn selected_at(&self) -> (f32, f32) {
-        let w = CART_W as f32;
+        let w = self
+            .carts
+            .get(self.index)
+            .map(|c| cart_box(c.platform).0)
+            .unwrap_or(CART_W) as f32;
         let offset = self.scroll_target() - self.scroll;
         let scale = shrink(offset);
         (OUT_W as f32 / 2.0 + offset * PITCH - w * scale / 2.0, scale)
@@ -580,7 +619,8 @@ impl Shelf {
             let t = offset.abs().min(1.0);
             let scale = shrink(offset);
             let alpha = (1.0 + (SIDE_ALPHA - 1.0) * t) * (1.0 - recede);
-            let (w, h) = (CART_W as f32 * scale, CART_H as f32 * scale);
+            let (cart_w, cart_h) = cart_box(cart.platform);
+            let (w, h) = (cart_w as f32 * scale, cart_h as f32 * scale);
             // Away from the middle, and further the further out it already was, so the row
             // opens rather than sliding sideways.
             let away = offset.signum() * (1.0 + offset.abs());
@@ -592,11 +632,16 @@ impl Shelf {
             // The floor is asked of the cartridge's full height rather than of the scaled one: a
             // neighbour shrinks upward off a floor it shares with the selection instead of
             // shrinking about its own middle.
-            let y = foot_y(CART_H as f32) - h;
+            let y = foot_y(cart_h as f32) - h;
             // Black in the cart's own shape, under the dimmed face. Without it the dimming is
             // transparency, and over a wallpaper the row reads as ghosts of carts.
             if alpha < 1.0 {
-                if let Some(tex) = self.shadow {
+                let shadow = match gb_shell_of(cart) {
+                    None => self.shadow,
+                    Some(GbShell::Notched) => self.gb_shadow,
+                    Some(GbShell::Rounded) => self.gbc_shadow,
+                };
+                if let Some(tex) = shadow {
                     out.push(Draw::Tex {
                         x,
                         y,

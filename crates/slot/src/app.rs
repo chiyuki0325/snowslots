@@ -27,6 +27,7 @@ use crate::link_radio::{radio_jobs, LinkRole, RadioJob, RadioJobs};
 use crate::link_screen::LinkSprites;
 use crate::link_start::{link_port, LinkFail, LinkProgress, LinkStarter, LinkStep};
 use crate::persist::{self, Snapshot};
+use crate::video_mode::{self, VideoMode};
 
 /// A floor, not a delay. The animation is where the core load hides, so a slow load
 /// extends it and a load that is already done still waits it out.
@@ -423,7 +424,7 @@ pub struct App {
     core_board_face: Option<TexId>,
     core_lid_face: Option<TexId>,
     /// The cart the uploaded board and lid were built for.
-    core_faces_stem: Option<String>,
+    core_faces_stem: Option<(Platform, String)>,
     /// In `Core::ALL` order: each socket empty, and the chip seated and named in each. Uploaded
     /// at boot, since none of them ever changes.
     core_socket_faces: Vec<TexId>,
@@ -451,7 +452,7 @@ pub struct App {
     /// The hardware SELECT last switched each cart to, by stem. Kept for as long as slot is
     /// running and never written to the card, so a cart nobody has switched since boot opens
     /// on whatever gpSP would pick for it.
-    link_choices: HashMap<String, LinkKind>,
+    link_choices: HashMap<(Platform, String), LinkKind>,
     /// The `gpsp_serial` the core in the slot was loaded with, as `Session` reported when it
     /// spawned it. gpSP reads its link mode only while a game loads, so this, not whatever the
     /// screen shows, is what a link would run over. `None` with the slot empty, and for a core
@@ -509,6 +510,7 @@ pub struct App {
     /// exactly the way `snapshot` is — both are set together and neither is cleared on eject —
     /// which is safe because every reader of either is gated on a cart actually being seated.
     core: Core,
+    video_mode: VideoMode,
     /// A colour correction change waiting to be carried to the running core, and `None` the rest
     /// of the time. `App` never touches the core itself, so this is the same shape
     /// `link_reload` and the link transport use: set here, drained by `Session::update`.
@@ -661,6 +663,7 @@ impl App {
             vol_before: Vec::new(),
             snapshot: None,
             core: Core::default(),
+            video_mode: VideoMode::default(),
             colour_pending: None,
             link_player: None,
             named_core: false,
@@ -729,10 +732,18 @@ impl App {
         // `slot.state` remembers, including a cart that is no longer on the card, names the
         // only thing it could have meant.
         let seated = if self.single_cart() {
-            Some(0)
+            self.shelf
+                .carts
+                .first()
+                .filter(|c| self.state.cart_platform.is_none_or(|p| c.platform == p))
+                .map(|_| 0)
         } else {
             let stem = self.state.cart.clone();
-            stem.and_then(|stem| self.shelf.carts.iter().position(|c| c.stem == stem))
+            stem.and_then(|stem| {
+                self.shelf.carts.iter().position(|c| {
+                    c.stem == stem && self.state.cart_platform.is_none_or(|p| p == c.platform)
+                })
+            })
         };
         self.phase = Phase::Shelf;
         match seated {
@@ -750,7 +761,10 @@ impl App {
             }
             // A cart the library no longer has is an empty slot. Left uncorrected on disk:
             // the next seat rewrites it, and a boot is the worst moment to need a write.
-            None => self.state.cart = None,
+            None => {
+                self.state.cart = None;
+                self.state.cart_platform = None;
+            }
         }
     }
 
@@ -868,6 +882,10 @@ impl App {
         self.shelf.set_shadow(face);
     }
 
+    pub fn set_gb_cart_shadows(&mut self, notched: TexId, rounded: TexId) {
+        self.shelf.set_gb_shadows(notched, rounded);
+    }
+
     pub fn set_wallpaper(&mut self, face: TexId) {
         self.wallpaper = Some(face);
     }
@@ -908,7 +926,54 @@ impl App {
             Phase::Doze { cart: Some(cart) } => cart,
             _ => return None,
         };
-        self.shelf.carts.iter().find(|c| c.stem == *stem)
+        self.shelf
+            .carts
+            .get(self.shelf.index)
+            .filter(|c| c.stem == *stem)
+    }
+
+    pub fn set_video_mode(&mut self, mode: VideoMode) {
+        self.video_mode = mode;
+    }
+
+    pub fn source_rect(&self) -> [f32; 4] {
+        self.seated_cart().map_or(slot_gfx::WHOLE_TEXTURE, |cart| {
+            video_mode::source_rect(cart.platform, self.video_mode)
+        })
+    }
+
+    fn slot_owns_the_shoulders(&self) -> bool {
+        matches!(self.phase, Phase::Playing { .. })
+            && self
+                .seated_cart()
+                .is_some_and(|cart| cart.platform != Platform::Gba)
+    }
+
+    pub fn taken_buttons(&self) -> &'static [Btn] {
+        if self.slot_owns_the_shoulders() {
+            &[Btn::L1, Btn::R1]
+        } else {
+            &[]
+        }
+    }
+
+    pub fn takes_from_the_game(&self, action: Action) -> bool {
+        match action {
+            Action::GbaDown(btn) | Action::GbaUp(btn) => self.taken_buttons().contains(&btn),
+            _ => false,
+        }
+    }
+
+    fn set_picture(&mut self, mode: VideoMode) {
+        if self.video_mode == mode {
+            return;
+        }
+        self.video_mode = mode;
+        if let (Some(root), Some(cart)) = (&self.root, self.seated_cart()) {
+            if let Err(e) = video_mode::write_video_mode(root, cart.platform, &cart.stem, mode) {
+                eprintln!("slot: video: could not write video_mode.ini: {e}");
+            }
+        }
     }
 
     /// Exactly one cart on the card. The shelf is unreachable and eject is refused.
@@ -1022,7 +1087,11 @@ impl App {
         let Some((cart, auto)) = self.auto_link(stem) else {
             return (LinkKind::Cable, "auto");
         };
-        let chosen = self.link_choices.get(stem).copied().unwrap_or(auto);
+        let chosen = self
+            .link_choices
+            .get(&(cart.platform, stem.to_string()))
+            .copied()
+            .unwrap_or(auto);
         (chosen, serial_option(chosen, auto, &cart.code, &cart.title))
     }
 
@@ -1334,7 +1403,13 @@ impl App {
             return;
         };
         if reload.fallback {
-            self.link_choices.insert(reload.stem, reload.from);
+            self.link_choices.insert(
+                (
+                    self.state.cart_platform.unwrap_or(Platform::Gba),
+                    reload.stem,
+                ),
+                reload.from,
+            );
             self.close_game_menu();
             return self.refuse();
         }
@@ -1367,11 +1442,21 @@ impl App {
             self.reload = Some(reload);
             return;
         }
-        self.link_choices.insert(reload.stem, reload.from);
+        self.link_choices.insert(
+            (
+                self.state.cart_platform.unwrap_or(Platform::Gba),
+                reload.stem,
+            ),
+            reload.from,
+        );
         self.refuse_seated();
     }
 
     /// The cart under the highlight, and `None` on an empty shelf.
+    pub fn selected_cart(&self) -> Option<&Cart> {
+        self.shelf().carts.get(self.shelf().index)
+    }
+
     pub fn selected_stem(&self) -> Option<&str> {
         self.shelf()
             .carts
@@ -1525,12 +1610,22 @@ impl App {
                 Action::GbaDown(Btn::L2) => self.cycle_shelf_sort(-1, now),
                 Action::GbaDown(Btn::R2) => self.cycle_shelf_sort(1, now),
                 Action::GbaDown(Btn::L1) => {
-                    let offset = self.state.utc_offset_min;
-                    self.shelf_mut().jump_prev_group(offset);
+                    if self.shelf.sort_mode() == ShelfSort::System {
+                        self.play_held = None;
+                        self.shelf_mut().switch_platform(-1);
+                    } else {
+                        let offset = self.state.utc_offset_min;
+                        self.shelf_mut().jump_prev_group(offset);
+                    }
                 }
                 Action::GbaDown(Btn::R1) => {
-                    let offset = self.state.utc_offset_min;
-                    self.shelf_mut().jump_next_group(offset);
+                    if self.shelf.sort_mode() == ShelfSort::System {
+                        self.play_held = None;
+                        self.shelf_mut().switch_platform(1);
+                    } else {
+                        let offset = self.state.utc_offset_min;
+                        self.shelf_mut().jump_next_group(offset);
+                    }
                 }
                 Action::GbaDown(Btn::Up) => {
                     let offset = self.state.utc_offset_min;
@@ -1561,6 +1656,12 @@ impl App {
             // be got out. Nothing else here applies until there is a game.
             Phase::Inserting { .. } if action == Action::Eject => self.eject(),
             Phase::Playing { .. } => match action {
+                Action::GbaDown(Btn::L1) if self.slot_owns_the_shoulders() => {
+                    self.set_picture(VideoMode::Stretch)
+                }
+                Action::GbaDown(Btn::R1) if self.slot_owns_the_shoulders() => {
+                    self.set_picture(VideoMode::Actual)
+                }
                 Action::Eject => self.eject(),
                 Action::GameMenu => self.game_menu_shortcut(),
                 Action::Polaroids => self.open_polaroids(),
@@ -2067,8 +2168,8 @@ impl App {
         let Some(platform) = self
             .shelf
             .carts
-            .iter()
-            .find(|cart| cart.stem == stem)
+            .get(self.shelf.index)
+            .filter(|cart| cart.stem == stem)
             .map(|cart| cart.platform)
         else {
             return;
@@ -2083,10 +2184,18 @@ impl App {
     }
 
     fn record_cart(&mut self, cart: Option<String>) {
-        if self.state.cart == cart {
+        let platform = cart.as_ref().and_then(|stem| {
+            self.shelf
+                .carts
+                .get(self.shelf.index)
+                .filter(|c| &c.stem == stem)
+                .map(|c| c.platform)
+        });
+        if self.state.cart == cart && self.state.cart_platform == platform {
             return;
         }
         self.state.cart = cart;
+        self.state.cart_platform = platform;
         self.persist();
     }
 
@@ -2152,7 +2261,12 @@ impl App {
         let Some(root) = &self.root else {
             return;
         };
-        let ring = StateRing::new(root, self.core, stem);
+        let ring = StateRing::for_platform(
+            root,
+            self.state.cart_platform.unwrap_or(Platform::Gba),
+            self.core,
+            stem,
+        );
         match ring.retire_resume(&format_stamp(self.wall_secs())) {
             Ok(Some(to)) => eprintln!(
                 "slot: resume: {} refused this state, moved it to {}",
@@ -2494,7 +2608,7 @@ impl App {
     pub fn set_core_board_faces(&mut self, board: TexId, lid: TexId) {
         self.core_board_face = Some(board);
         self.core_lid_face = Some(lid);
-        self.core_faces_stem = self.selected_stem().map(str::to_string);
+        self.core_faces_stem = self.selected_cart().map(|c| (c.platform, c.stem.clone()));
     }
 
     /// `sockets` and `chips` in `Core::ALL` order.
@@ -2842,7 +2956,11 @@ impl App {
     /// screen opening, a core loading, a link being picked — and never once a frame. `None`
     /// for a cart the shelf cannot name.
     fn auto_link(&self, stem: &str) -> Option<(&Cart, LinkKind)> {
-        let cart = self.shelf().carts.iter().find(|c| c.stem == stem)?;
+        let cart = self
+            .shelf()
+            .carts
+            .get(self.shelf().index)
+            .filter(|c| c.stem == stem)?;
         let auto = link_kind(&cart.code, &cart.title, slot_store::header_clean(&cart.rom));
         Some((cart, auto))
     }
@@ -2949,9 +3067,20 @@ impl App {
             return;
         };
         let (state, sav) = trusted_write(snapshot.as_ref(), state, "eject");
-        match persist::eject(root, self.core, stem, state.as_deref(), sav.as_deref()) {
+        let platform = self.state.cart_platform.unwrap_or(Platform::Gba);
+        match persist::eject_for_platform(
+            root,
+            platform,
+            self.core,
+            stem,
+            state.as_deref(),
+            sav.as_deref(),
+        ) {
             // Mirroring what `persist::eject` just wrote to the card: the slot is empty.
-            Ok(()) => self.state.cart = None,
+            Ok(()) => {
+                self.state.cart = None;
+                self.state.cart_platform = None;
+            }
             Err(e) => eprintln!("slot: eject: {e}"),
         }
     }
@@ -3144,7 +3273,10 @@ impl App {
         let Some(cart) = self.shelf().carts.get(self.shelf().index) else {
             return;
         };
-        let seat = slot_store::core_for(&root, &cart.stem);
+        if cart.platform != Platform::Gba {
+            return;
+        }
+        let seat = slot_store::core_for_platform(&root, &cart.stem, cart.platform);
         let now = self.now();
         let mut picker = CorePicker::open(seat, now);
         if self.core_faces_ready() {
@@ -3161,8 +3293,11 @@ impl App {
     /// Whether the board and lid on the GPU are the highlighted cart's, so its open can start.
     fn core_faces_ready(&self) -> bool {
         self.core_faces_stem
-            .as_deref()
-            .is_some_and(|stem| self.selected_stem() == Some(stem))
+            .as_ref()
+            .is_some_and(|(platform, stem)| {
+                self.selected_cart()
+                    .is_some_and(|cart| cart.platform == *platform && cart.stem == *stem)
+            })
     }
 
     /// The picker owns every button while it is up, including the arrows the shelf uses: a
@@ -3420,7 +3555,9 @@ impl App {
         }
         let other = self.link_hardware.other();
         self.link_hardware = other;
-        self.link_choices.insert(stem, other);
+        if let Some(platform) = self.state.cart_platform {
+            self.link_choices.insert((platform, stem), other);
+        }
     }
 
     /// Whether SELECT has anything to switch this cart to: whether the other hardware would load
@@ -3714,7 +3851,15 @@ impl App {
             return;
         };
         let (state, sav) = trusted_write(snapshot.as_ref(), state, "flush");
-        if let Err(e) = persist::flush(root, self.core, cart, state.as_deref(), sav.as_deref()) {
+        let platform = self.state.cart_platform.unwrap_or(Platform::Gba);
+        if let Err(e) = persist::flush_for_platform(
+            root,
+            platform,
+            self.core,
+            cart,
+            state.as_deref(),
+            sav.as_deref(),
+        ) {
             eprintln!("slot: flush: {e}");
         }
     }
@@ -3725,7 +3870,12 @@ impl App {
         let (Some(root), Some(cart)) = (&self.root, self.seated()) else {
             return None;
         };
-        Some(StateRing::new(root, self.core, cart))
+        Some(StateRing::for_platform(
+            root,
+            self.state.cart_platform.unwrap_or(Platform::Gba),
+            self.core,
+            cart,
+        ))
     }
 
     fn seated(&self) -> Option<&str> {

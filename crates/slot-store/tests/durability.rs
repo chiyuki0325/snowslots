@@ -211,6 +211,7 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
         read_slot_state(d.path()),
         SlotState {
             cart: Some("Emerald".into()),
+            cart_platform: None,
             brightness: 3,
             blue_light: 1,
             volume: 40,
@@ -335,11 +336,9 @@ fn an_out_of_range_setting_falls_back_to_its_default() {
     }
 }
 
-/// The builds that ran Game Boy carts too wrote which folder the seated cart came from. A card
-/// left with a Game Boy cart in the slot must come up on the shelf, not resume a GBA cart that
-/// shares its stem; one that says `gba`, in any case, or nothing, is the cart it names.
+/// A card written by any version keeps the cart and its platform together.
 #[test]
-fn a_card_left_holding_a_game_boy_cart_comes_up_empty() {
+fn seated_platform_is_restored_from_a_previous_card() {
     let d = tmp_root();
     let known = "cart=Tetris\nbrightness=3\nblue_light=1\nvolume=40\nmuted=0\nclock_set=1\nutc_offset_min=0\n";
     for (line, want) in [
@@ -347,8 +346,9 @@ fn a_card_left_holding_a_game_boy_cart_comes_up_empty() {
         ("cart_platform=\n", Some("Tetris")),
         ("cart_platform=gba\n", Some("Tetris")),
         ("cart_platform=GBA\n", Some("Tetris")),
-        ("cart_platform=gb\n", None),
-        ("cart_platform=gbc\n", None),
+        ("cart_platform=gb\n", Some("Tetris")),
+        ("cart_platform=gbc\n", Some("Tetris")),
+        ("cart_platform=future\n", None),
     ] {
         std::fs::write(d.path().join("System/slot.state"), format!("{known}{line}")).unwrap();
         let s = read_slot_state(d.path());
@@ -361,18 +361,18 @@ fn a_card_left_holding_a_game_boy_cart_comes_up_empty() {
     }
 }
 
-/// Nothing this build writes names a platform: there is only the one.
 #[test]
-fn the_state_file_no_longer_names_a_platform() {
+fn the_state_file_records_the_seated_platform() {
     let d = tmp_root();
     let s = SlotState {
         cart: Some("Emerald".into()),
+        cart_platform: Some(slot_store::Platform::Gbc),
         clock_set: true,
         ..SlotState::default()
     };
     write_slot_state(d.path(), &s).unwrap();
     let text = std::fs::read_to_string(d.path().join("System/slot.state")).unwrap();
-    assert!(!text.contains("cart_platform"), "{text:?}");
+    assert!(text.contains("cart_platform=gbc\n"), "{text:?}");
     assert_eq!(read_slot_state(d.path()), s);
 }
 

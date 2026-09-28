@@ -491,9 +491,14 @@ unsafe extern "C" fn video_refresh(
     with_host(|h| {
         let cols = width.min(GBA_W) as usize;
         let rows = height.min(GBA_H) as usize;
+        let left = (GBA_W as usize - cols) / 2;
+        let top = (GBA_H as usize - rows) / 2;
+        if cols != GBA_W as usize || rows != GBA_H as usize {
+            h.video.fill(0);
+        }
         for y in 0..rows {
             let src = (data as *const u8).add(y * pitch);
-            let row = y * GBA_W as usize * 4;
+            let row = ((y + top) * GBA_W as usize + left) * 4;
             match h.format {
                 PixelFormat::Xrgb8888 => {
                     ptr::copy_nonoverlapping(src, h.video.as_mut_ptr().add(row), cols * 4);
@@ -1999,6 +2004,24 @@ mod tests {
         };
 
         assert_eq!(unsafe { with_host(|h| h.video.clone()) }.unwrap(), frame);
+    }
+
+    #[test]
+    fn game_boy_picture_is_centred_and_clears_the_margins() {
+        let mut host = host_with(HashMap::new(), false);
+        host.video.fill(0xff);
+        let _active = Active::bind(&mut host);
+        let frame = gradient(160, 144);
+        unsafe { video_refresh(frame.as_ptr().cast(), 160, 144, 160 * 4) };
+        let video = unsafe { with_host(|h| h.video.clone()) }.unwrap();
+        let at = |x: usize, y: usize| (y * GBA_W as usize + x) * 4;
+        assert_eq!(&video[at(40, 8)..at(40, 8) + 4], &frame[..4]);
+        assert_eq!(
+            &video[at(199, 151)..at(199, 151) + 4],
+            &frame[frame.len() - 4..]
+        );
+        assert_eq!(&video[at(39, 8)..at(39, 8) + 4], &[0; 4]);
+        assert_eq!(&video[at(40, 7)..at(40, 7) + 4], &[0; 4]);
     }
 
     // --- duplicate frames -----------------------------------------------------------------

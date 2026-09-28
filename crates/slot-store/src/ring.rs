@@ -35,13 +35,16 @@ impl StateRing {
     /// `States/GBA/<core>/<stem>/`, which is also the shape a person organising a card by hand
     /// has to build.
     pub fn new(root: &Path, core: Core, stem: &str) -> Self {
-        StateRing {
-            dir: root
-                .join("States")
-                .join(crate::CART_DIR)
-                .join(core.as_str())
-                .join(stem),
-        }
+        Self::for_platform(root, crate::Platform::Gba, core, stem)
+    }
+
+    pub fn for_platform(root: &Path, platform: crate::Platform, core: Core, stem: &str) -> Self {
+        let base = root
+            .join("States")
+            .join(platform.dir_name())
+            .join(core.as_str());
+        let dir = crate::scan::find_dir_by_name(&base, stem).unwrap_or_else(|| base.join(stem));
+        StateRing { dir }
     }
 
     pub fn push(&self, state: &[u8], thumb_png: &[u8], stamp: &str) -> std::io::Result<()> {
