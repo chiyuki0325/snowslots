@@ -1682,8 +1682,8 @@ impl App {
                 Action::ShelfRight | Action::GbaDown(Btn::Right) => self.flick(Polaroids::right),
                 Action::GbaDown(Btn::A) => self.load_selected(),
                 Action::GbaDown(Btn::B) | Action::Polaroids => self.close_polaroids(),
-                // The offer lives on this screen and nowhere else. X and Y are free
-                // everywhere: the GBA has neither, so the game can never want them.
+                // The offer lives on this screen and nowhere else. X and Y are turbo
+                // buttons during play, but the switcher owns them while it is open.
                 Action::GbaDown(Btn::X) => self.undo(self.now()),
                 Action::GbaDown(Btn::Y) => self.delete_selected(),
                 _ => {}

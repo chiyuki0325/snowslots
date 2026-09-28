@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU32, AtomicU64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -159,7 +159,9 @@ enum Cmd {
 }
 
 struct Shared {
-    input: AtomicU16,
+    /// Ordinary buttons in the low half, X/Y turbo targets in the high half. Written as one
+    /// value so a frame never pairs a new turbo hold with an old ordinary mask.
+    input: AtomicU32,
     speed: AtomicU8,
     /// What the worker last read `speed` as, stored right after that read with `Release` so
     /// `EmuHandle::observed_speed` can tell a stopped core from a merely descheduled one — see
@@ -226,7 +228,7 @@ impl EmuHandle {
         let link = core.net();
         let frames = Frames::new((GBA_W * GBA_H * 4) as usize);
         let shared = Arc::new(Shared {
-            input: AtomicU16::new(0),
+            input: AtomicU32::new(0),
             // Paused until told otherwise. A core spawned during the insert would
             // otherwise run a frame or two before the session's first `sync_speed` lands,
             // and those frames are the start of the bios boot animation.
@@ -339,15 +341,20 @@ impl EmuHandle {
             .send(Cmd::SetOption(key.to_owned(), value.to_owned()));
     }
 
-    pub fn set_input(&self, mask: ButtonMask) {
-        self.shared.input.store(mask.0, Ordering::Relaxed);
+    pub fn set_input(&self, mask: ButtonMask, turbo: ButtonMask) {
+        self.shared.input.store(
+            u32::from(mask.0) | (u32::from(turbo.0) << 16),
+            Ordering::Relaxed,
+        );
     }
 
-    /// What the worker will read on its next pass. The far side of the one boundary a
-    /// button crosses to become the game's, and the only place a test can ask whether a
-    /// press a menu was using reached the core anyway.
+    /// Ordinary buttons on the worker's next pass; turbo targets are modulated per core frame.
     pub fn input(&self) -> ButtonMask {
-        ButtonMask(self.shared.input.load(Ordering::Relaxed))
+        ButtonMask(self.shared.input.load(Ordering::Relaxed) as u16)
+    }
+
+    pub fn turbo_input(&self) -> ButtonMask {
+        ButtonMask((self.shared.input.load(Ordering::Relaxed) >> 16) as u16)
     }
 
     pub fn latest_frame(&self) -> Option<FrameRef> {
@@ -515,6 +522,41 @@ struct Worker {
     cmds: Receiver<Cmd>,
 }
 
+/// RetroArch's six-frame period: three frames down, three up. Each target starts on a
+/// down frame when its turbo key is pressed, independently of the other target.
+#[derive(Default)]
+struct Turbo {
+    held: u16,
+    phase: [u8; 2],
+}
+
+impl Turbo {
+    fn sample(&mut self, input: u32) -> ButtonMask {
+        let held = (input >> 16) as u16;
+        let mut mask = input as u16;
+        for (index, bit) in [ButtonMask::A, ButtonMask::B].into_iter().enumerate() {
+            if held & bit != 0 {
+                if self.held & bit == 0 {
+                    self.phase[index] = 0;
+                }
+                if self.phase[index] < 3 {
+                    mask |= bit;
+                }
+            }
+        }
+        self.held = held;
+        ButtonMask(mask)
+    }
+
+    fn advance(&mut self) {
+        for (index, bit) in [ButtonMask::A, ButtonMask::B].into_iter().enumerate() {
+            if self.held & bit != 0 {
+                self.phase[index] = (self.phase[index] + 1) % 6;
+            }
+        }
+    }
+}
+
 impl Worker {
     fn run(
         self,
@@ -584,6 +626,7 @@ impl Worker {
         let mut gated = (false, false);
         let rewind = RewindThread::spawn(REWIND_BYTES);
         let mut since_snapshot = 0;
+        let mut turbo = Turbo::default();
         // What the most expensive core frame has been costing lately, kept across presents so a
         // fast forward present can tell before it runs a frame whether there is room for another
         // one after it.
@@ -719,7 +762,9 @@ impl Worker {
                 ring.set_idle(gate.1);
                 gated = gate;
             }
-            let input = ButtonMask(self.shared.input.load(Ordering::Relaxed));
+            if speed == Speed::Paused || rewinding {
+                turbo = Turbo::default();
+            }
             let ceiling = match speed {
                 Speed::Paused => 0,
                 Speed::Normal => 1,
@@ -777,6 +822,7 @@ impl Worker {
                 loop {
                     ran += 1;
                     let last = ran >= ceiling || began.elapsed() + frame_peak * 2 > budget;
+                    let input = turbo.sample(self.shared.input.load(Ordering::Relaxed));
                     core.set_frame_skip(!last);
                     let frame_began = Instant::now();
                     match cable.as_mut() {
@@ -818,6 +864,7 @@ impl Worker {
                             match ready {
                                 Some((p0, p1)) => {
                                     core.run_frame_linked(p0, p1);
+                                    turbo.advance();
                                     c.advance();
                                     self.shared.linked.fetch_add(1, Ordering::Relaxed);
                                 }
@@ -832,7 +879,10 @@ impl Worker {
                                 }
                             }
                         }
-                        None => core.run_frame(input),
+                        None => {
+                            core.run_frame(input);
+                            turbo.advance();
+                        }
                     }
                     worst = worst.max(frame_began.elapsed());
                     if last {
@@ -1174,6 +1224,62 @@ fn drain_transport(transport: &mut dyn LinkChannel, link: &Link, cap: u32) {
 mod tests {
     use super::*;
     use slot_retro::LoopbackLink;
+
+    #[test]
+    fn turbo_runs_three_frames_on_three_off_independently_of_presents() {
+        let mut turbo = Turbo::default();
+        let held = u32::from(ButtonMask::A | ButtonMask::B) << 16;
+        for expected in [true, true, true, false, false, false, true] {
+            let mask = turbo.sample(held);
+            assert_eq!(mask.0 & (ButtonMask::A | ButtonMask::B) != 0, expected);
+            assert_eq!(
+                mask.0 & (ButtonMask::A | ButtonMask::B),
+                if expected {
+                    ButtonMask::A | ButtonMask::B
+                } else {
+                    0
+                }
+            );
+            assert_eq!(
+                turbo.sample(held),
+                mask,
+                "sampling a stalled cable frame must not advance turbo"
+            );
+            turbo.advance();
+        }
+    }
+
+    #[test]
+    fn turbo_starts_immediately_and_never_releases_a_held_normal_button() {
+        let mut turbo = Turbo::default();
+        let x = u32::from(ButtonMask::A) << 16;
+        assert_eq!(turbo.sample(x), ButtonMask(ButtonMask::A));
+        for _ in 0..3 {
+            turbo.advance();
+        }
+        assert_eq!(turbo.sample(x), ButtonMask(0));
+        assert_eq!(
+            turbo.sample(x | u32::from(ButtonMask::A)),
+            ButtonMask(ButtonMask::A)
+        );
+        assert_eq!(turbo.sample(0), ButtonMask(0));
+        turbo.advance();
+        assert_eq!(turbo.sample(x), ButtonMask(ButtonMask::A));
+    }
+
+    #[test]
+    fn each_turbo_button_starts_its_own_cycle() {
+        let mut turbo = Turbo::default();
+        let x = u32::from(ButtonMask::A) << 16;
+        for _ in 0..3 {
+            assert_eq!(turbo.sample(x), ButtonMask(ButtonMask::A));
+            turbo.advance();
+        }
+        let both = u32::from(ButtonMask::A | ButtonMask::B) << 16;
+        assert_eq!(turbo.sample(both), ButtonMask(ButtonMask::B));
+        turbo.advance();
+        assert_eq!(turbo.sample(both), ButtonMask(ButtonMask::B));
+    }
 
     /// I6: an unbounded drain here gives a flooding peer unbounded work in a single present.
     /// `LoopbackLink` holds everything sent to it in a plain queue, so filling it past the

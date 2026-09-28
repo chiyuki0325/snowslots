@@ -1655,6 +1655,51 @@ fn pad(s: &Session) -> u16 {
     s.emu().expect("no core in the slot").input().0
 }
 
+#[test]
+fn x_and_y_request_turbo_only_during_play() {
+    let d = common::tmp_root_with_carts(&["Emerald", "Zzz"]);
+    let mut s = session_playing(d.path());
+    s.feed([RawEvent::Down(Btn::X), RawEvent::Down(Btn::Y)], 1000);
+    let emu = s.emu().unwrap();
+    assert_eq!(emu.input(), ButtonMask(0), "X/Y must not reach libretro");
+    assert_eq!(emu.turbo_input(), ButtonMask(ButtonMask::A | ButtonMask::B));
+
+    s.feed([RawEvent::Down(Btn::A)], 1020);
+    assert_eq!(pad(&s), ButtonMask::A);
+    s.feed([RawEvent::Up(Btn::X)], 1040);
+    assert_eq!(s.emu().unwrap().turbo_input(), ButtonMask(ButtonMask::B));
+    s.feed([RawEvent::Up(Btn::A), RawEvent::Up(Btn::Y)], 1060);
+    assert_eq!(pad(&s), 0);
+    assert_eq!(s.emu().unwrap().turbo_input(), ButtonMask(0));
+
+    s.feed([RawEvent::Down(Btn::X)], 1100);
+    s.feed([RawEvent::Down(Btn::Select)], 1120);
+    s.feed([RawEvent::Down(Btn::Menu)], 1140);
+    assert!(s.app().game_menu_open());
+    assert_eq!(
+        s.emu().unwrap().turbo_input(),
+        ButtonMask(0),
+        "the menu must clear turbo holds"
+    );
+    s.feed([RawEvent::Down(Btn::Y)], 1160);
+    assert_eq!(
+        s.emu().unwrap().turbo_input(),
+        ButtonMask(0),
+        "menu buttons must not arm turbo"
+    );
+}
+
+#[test]
+fn select_y_colour_chord_does_not_start_turbo_b() {
+    let d = common::tmp_root_with_carts(&["Emerald", "Zzz"]);
+    let mut s = session_playing(d.path());
+    s.feed([RawEvent::Down(Btn::Select)], 1000);
+    s.feed([RawEvent::Down(Btn::Y)], 1050);
+    assert_eq!(s.emu().unwrap().turbo_input(), ButtonMask(0));
+    s.feed([RawEvent::Up(Btn::Y)], 1100);
+    assert_eq!(s.emu().unwrap().turbo_input(), ButtonMask(0));
+}
+
 /// The power menu's own buttons, which are not the game's. `App::apply` returns above the
 /// phase for as long as that menu is up, so every press on it is spent there — and yet the
 /// gate in `Session::act` named only the switcher and the in-game menu, so Up, Down and the

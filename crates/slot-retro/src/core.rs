@@ -7,8 +7,8 @@ use crate::rumble::Rumble;
 pub const GBA_W: u32 = 240;
 pub const GBA_H: u32 = 160;
 
-/// libretro `RETRO_DEVICE_ID_JOYPAD` bit order. Y and X have no GBA equivalent, so bits 1
-/// and 9 are never set.
+/// libretro `RETRO_DEVICE_ID_JOYPAD` bit order. X/Y turbo is translated to A/B by
+/// the frontend; bits 1 and 9 are never sent to the core.
 #[derive(Copy, Clone, Default, PartialEq, Eq, Debug)]
 pub struct ButtonMask(pub u16);
 

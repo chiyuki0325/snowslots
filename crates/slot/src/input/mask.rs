@@ -6,6 +6,7 @@ use slot_retro::ButtonMask;
 #[derive(Default)]
 pub struct Pad {
     mask: u16,
+    turbo: u16,
 }
 
 impl Pad {
@@ -15,10 +16,16 @@ impl Pad {
                 if let Some(bit) = bit(b) {
                     self.mask |= bit;
                 }
+                if let Some(bit) = turbo_bit(b) {
+                    self.turbo |= bit;
+                }
             }
             Action::GbaUp(b) => {
                 if let Some(bit) = bit(b) {
                     self.mask &= !bit;
+                }
+                if let Some(bit) = turbo_bit(b) {
+                    self.turbo &= !bit;
                 }
             }
             _ => {}
@@ -29,10 +36,23 @@ impl Pad {
         ButtonMask(self.mask)
     }
 
+    pub fn turbo(&self) -> ButtonMask {
+        ButtonMask(self.turbo)
+    }
+
     /// Buttons pressed for the switcher are not the game's. Without this the game resumes
     /// holding whatever was down when the switcher took the input.
     pub fn clear(&mut self) {
         self.mask = 0;
+        self.turbo = 0;
+    }
+}
+
+fn turbo_bit(btn: Btn) -> Option<u16> {
+    match btn {
+        Btn::X => Some(ButtonMask::A),
+        Btn::Y => Some(ButtonMask::B),
+        _ => None,
     }
 }
 

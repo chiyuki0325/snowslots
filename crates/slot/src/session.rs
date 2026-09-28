@@ -176,7 +176,7 @@ impl Session {
             self.pad.apply(Action::GbaUp(btn));
         }
         if let Some(emu) = &self.emu {
-            emu.set_input(self.pad.mask());
+            emu.set_input(self.pad.mask(), self.pad.turbo());
         }
     }
 

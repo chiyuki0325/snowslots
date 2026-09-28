@@ -255,6 +255,7 @@ struct Probe {
     cost: Duration,
     skip: bool,
     log: Arc<Mutex<Vec<bool>>>,
+    inputs: Option<Arc<Mutex<Vec<ButtonMask>>>>,
 }
 
 impl Probe {
@@ -265,6 +266,7 @@ impl Probe {
             cost,
             skip: false,
             log: log.clone(),
+            inputs: None,
         });
         (probe, log)
     }
@@ -276,6 +278,9 @@ impl RetroCore for Probe {
     }
     fn run_frame(&mut self, input: ButtonMask) {
         self.log.lock().expect("the skip log").push(self.skip);
+        if let Some(inputs) = &self.inputs {
+            inputs.lock().expect("the input log").push(input);
+        }
         if !self.cost.is_zero() {
             std::thread::sleep(self.cost);
         }
@@ -305,6 +310,35 @@ impl RetroCore for Probe {
     }
     fn av_info(&self) -> AvInfo {
         self.inner.av_info()
+    }
+}
+
+#[test]
+fn fast_forward_modulates_turbo_on_each_core_frame() {
+    let mut sink = StubSink::new();
+    sink.open(32_768).unwrap();
+    drain(sink.clone());
+    let (mut core, _) = Probe::new(Duration::ZERO);
+    let inputs = Arc::new(Mutex::new(Vec::new()));
+    core.inputs = Some(inputs.clone());
+    let emu = EmuHandle::spawn(core, PathBuf::from("mock"), sink.ring(), None, None);
+    assert!(wait_for(|| emu.state() == CoreState::Ready));
+    emu.set_input(ButtonMask(0), ButtonMask(ButtonMask::A | ButtonMask::B));
+    emu.set_speed(Speed::Fast);
+    assert!(wait_for(|| inputs.lock().unwrap().len() >= 18));
+    emu.set_speed(Speed::Paused);
+    assert!(wait_for(|| emu.observed_speed() == Speed::Paused));
+    let got = inputs.lock().unwrap();
+    for (frame, input) in got.iter().take(18).enumerate() {
+        let expected = if frame % 6 < 3 {
+            ButtonMask::A | ButtonMask::B
+        } else {
+            0
+        };
+        assert_eq!(
+            input.0, expected,
+            "core frame {frame} received the wrong buttons"
+        );
     }
 }
 

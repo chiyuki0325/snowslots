@@ -63,9 +63,9 @@ pub enum Action {
     /// tap, which the quick menu already has.
     GameMenu,
     MuteToggle,
-    /// TEMPORARY. SELECT+Y, for judging colour correction in a game, where the settings row
-    /// cannot reach. Y never reaches the core, so the chord costs the game nothing. Remove with
-    /// its `chord` entry and the branch in `App::adjust`.
+    /// TEMPORARY. SELECT+Y, for judging colour correction in a game. This chord swallows
+    /// Y, so it does not also start turbo B. Remove with its `chord` entry and the branch
+    /// in `App::adjust`.
     ColourCorrectionToggle,
     /// The press itself. Nothing visible hangs off it — it exists so the save state is
     /// flushed before a hold can reach the PMIC's own cutoff, which takes the rails away
