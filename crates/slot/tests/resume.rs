@@ -59,6 +59,41 @@ fn read_resume_finds_what_a_flush_wrote() {
 /// lives in this function: whichever `Core` it is handed is where the resume lands, no ini
 /// involved. `crates/slot/tests/gpsp.rs` covers the other half — that `session.rs` resolves
 /// the ini exactly once and hands that same value to every reader and writer for the cart.
+#[cfg(unix)]
+#[test]
+fn a_gb18030_resume_directory_is_found_by_its_decoded_stem() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let d = common::tmp_root_with_carts(&["宝可梦"]);
+    let stem = OsString::from_vec(vec![0xb1, 0xa6, 0xbf, 0xc9, 0xc3, 0xce]);
+    let dir = d.path().join("States/GBA/mgba").join(stem);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("resume.state"), b"resume bytes").unwrap();
+
+    assert_eq!(
+        persist::read_resume(d.path(), slot_store::Core::Mgba, "宝可梦").as_deref(),
+        Some(&b"resume bytes"[..])
+    );
+
+    persist::flush(
+        d.path(),
+        slot_store::Core::Mgba,
+        "宝可梦",
+        Some(b"updated resume"),
+        None,
+    )
+    .unwrap();
+    assert_eq!(
+        std::fs::read(dir.join("resume.state")).unwrap(),
+        b"updated resume"
+    );
+    assert!(!d
+        .path()
+        .join("States/GBA/mgba/宝可梦/resume.state")
+        .exists());
+}
+
 #[test]
 fn flush_routes_by_the_core_it_is_given() {
     let d = common::tmp_root_with_carts(&["Emerald"]);
@@ -95,9 +130,47 @@ fn a_retroarch_srm_is_read_when_there_is_no_sav() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn a_gb18030_battery_save_is_found_by_its_decoded_stem() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let d = common::tmp_root_with_carts(&["宝可梦"]);
+    let file = OsString::from_vec(vec![
+        0xb1, 0xa6, 0xbf, 0xc9, 0xc3, 0xce, b'.', b's', b'r', b'm',
+    ]);
+    std::fs::create_dir_all(d.path().join("Saves/GBA")).unwrap();
+    std::fs::write(d.path().join("Saves/GBA").join(file), b"battery bytes").unwrap();
+
+    assert_eq!(
+        persist::read_sav(d.path(), "宝可梦").as_deref(),
+        Some(&b"battery bytes"[..])
+    );
+}
+
 /// `read_sav` returning the right bytes proves nothing on its own. The bug this file was
 /// written for was a function with no caller, so the bytes have to be followed all the way
 /// into the core's save ram through the same call the session makes.
+#[cfg(unix)]
+#[test]
+fn a_gb18030_battery_save_write_reuses_its_original_path() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+
+    let d = common::tmp_root_with_carts(&["宝可梦"]);
+    let file = OsString::from_vec(vec![
+        0xb1, 0xa6, 0xbf, 0xc9, 0xc3, 0xce, b'.', b's', b'a', b'v',
+    ]);
+    let path = d.path().join("Saves/GBA").join(file);
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, b"old battery bytes").unwrap();
+
+    assert!(persist::write_sav(d.path(), "宝可梦", b"updated battery bytes").unwrap());
+    assert_eq!(std::fs::read(path).unwrap(), b"updated battery bytes");
+    assert!(!d.path().join("Saves/GBA/宝可梦.sav").exists());
+}
+
 #[test]
 fn srm_bytes_on_disk_reach_the_cores_save_ram() {
     let d = common::tmp_root_with_carts(&["Emerald"]);
