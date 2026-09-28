@@ -5,6 +5,9 @@ use std::time::{Duration, Instant};
 
 use slot::audio::{AudioSink, StubSink};
 use slot::emu::{CoreState, EmuHandle, Speed, FAST_STEPS, FAST_STEPS_MAX};
+
+#[path = "common/display_pacing.rs"]
+mod display_pacing;
 use slot::persist::Snapshot;
 use slot_retro::{
     AvInfo, ButtonMask, CoreError, LinkChannel, MockCore, RetroCore, NETPACKET_RELIABLE,
@@ -256,6 +259,8 @@ struct Probe {
     skip: bool,
     log: Arc<Mutex<Vec<bool>>>,
     inputs: Option<Arc<Mutex<Vec<ButtonMask>>>>,
+    frame_gate: Option<display_pacing::Gate>,
+    snapshot_gate: Option<display_pacing::Gate>,
 }
 
 impl Probe {
@@ -267,6 +272,8 @@ impl Probe {
             skip: false,
             log: log.clone(),
             inputs: None,
+            frame_gate: None,
+            snapshot_gate: None,
         });
         (probe, log)
     }
@@ -280,6 +287,9 @@ impl RetroCore for Probe {
         self.log.lock().expect("the skip log").push(self.skip);
         if let Some(inputs) = &self.inputs {
             inputs.lock().expect("the input log").push(input);
+        }
+        if let Some(gate) = &self.frame_gate {
+            gate.enter();
         }
         if !self.cost.is_zero() {
             std::thread::sleep(self.cost);
@@ -297,6 +307,9 @@ impl RetroCore for Probe {
         self.inner.take_audio()
     }
     fn serialize(&mut self) -> Result<Vec<u8>, CoreError> {
+        if let Some(gate) = &self.snapshot_gate {
+            gate.enter();
+        }
         self.inner.serialize()
     }
     fn unserialize(&mut self, data: &[u8]) -> Result<(), CoreError> {

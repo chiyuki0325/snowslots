@@ -18,8 +18,8 @@ use crate::pitch::PitchStretch;
 use crate::resample::Resampler;
 use crate::rewind::{RewindThread, REWIND_BYTES};
 
-/// Present is locked to the 60 Hz panel and the core is stepped once per present, so the
-/// 0.456% the GBA runs slow lands entirely on audio rate control.
+/// The autonomous clock's period and the audio conversion's nominal display rate. The
+/// device experiment instead starts batches on display requests, still targeting 60 Hz.
 const PRESENT: Duration = Duration::from_nanos(16_666_667);
 
 /// The speed a card that never chose one gets, and what the quick menu's 6× asks for. The menu
@@ -134,7 +134,41 @@ pub struct EmuHandle {
     link: Link,
 }
 
+/// The display waits for its own request, never merely for a frame counter to change.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FrameOutcome {
+    Published,
+    NoFrame,
+    TimedOut,
+    Busy,
+}
+
+struct FrameRequest {
+    id: u64,
+    epoch: u64,
+    input: u32,
+    deadline: Instant,
+    reply: Sender<(u64, FrameOutcome)>,
+    outstanding: Arc<AtomicBool>,
+}
+
+impl FrameRequest {
+    fn finish(self, outcome: FrameOutcome) {
+        let (id, reply) = (self.id, self.reply.clone());
+        drop(self);
+        let _ = reply.send((id, outcome));
+    }
+}
+
+impl Drop for FrameRequest {
+    fn drop(&mut self) {
+        self.outstanding.store(false, Ordering::Release);
+    }
+}
+
 enum Cmd {
+    Wake,
+    Present(FrameRequest),
     Load(Vec<u8>),
     Save(Sender<Vec<u8>>),
     Sav(Sender<Option<Vec<u8>>>),
@@ -160,6 +194,11 @@ enum Cmd {
 }
 
 struct Shared {
+    display_paced: AtomicBool,
+    pacing_epoch: AtomicU64,
+    next_request: AtomicU64,
+    /// At most one pending or running request. A slow core never builds up a FIFO of frames.
+    outstanding: Arc<AtomicBool>,
     /// Ordinary buttons in the low half, X/Y turbo targets in the high half. Written as one
     /// value so a frame never pairs a new turbo hold with an old ordinary mask.
     input: AtomicU32,
@@ -230,6 +269,10 @@ impl EmuHandle {
         let link = core.net();
         let frames = Frames::new((GBA_W * GBA_H * 4) as usize);
         let shared = Arc::new(Shared {
+            display_paced: AtomicBool::new(false),
+            pacing_epoch: AtomicU64::new(0),
+            next_request: AtomicU64::new(0),
+            outstanding: Arc::new(AtomicBool::new(false)),
             input: AtomicU32::new(0),
             // Paused until told otherwise. A core spawned during the insert would
             // otherwise run a frame or two before the session's first `sync_speed` lands,
@@ -365,7 +408,59 @@ impl EmuHandle {
     }
 
     pub fn set_speed(&self, speed: Speed) {
-        self.shared.speed.store(speed as u8, Ordering::Relaxed);
+        if self.shared.speed.swap(speed as u8, Ordering::Relaxed) != speed as u8 {
+            let _ = self.cmds.send(Cmd::Wake);
+        }
+    }
+
+    /// Configure before unpausing a new core. Only the device opts into this clock.
+    pub fn set_display_paced(&self, enabled: bool) {
+        if self.shared.display_paced.swap(enabled, Ordering::AcqRel) != enabled {
+            self.shared.pacing_epoch.fetch_add(1, Ordering::AcqRel);
+            let _ = self.cmds.send(Cmd::Wake);
+        }
+    }
+
+    /// Whether a display request is queued or still running, without consuming its reply.
+    pub fn frame_request_pending(&self) -> bool {
+        self.shared.outstanding.load(Ordering::Acquire)
+    }
+
+    /// One present's input snapshot, with a private completion channel. Late replies cannot
+    /// satisfy the next request, and an occupied worker is never handed a backlog to catch up.
+    pub fn request_frame_until(&self, deadline: Instant) -> FrameOutcome {
+        if !self.shared.display_paced.load(Ordering::Acquire)
+            || self.state() != CoreState::Ready
+            || Speed::from_u8(self.shared.speed.load(Ordering::Relaxed)) == Speed::Paused
+        {
+            return FrameOutcome::NoFrame;
+        }
+        if deadline <= Instant::now() {
+            return FrameOutcome::TimedOut;
+        }
+        let epoch = self.shared.pacing_epoch.load(Ordering::Acquire);
+        let input = self.shared.input.load(Ordering::Relaxed);
+        if self.shared.outstanding.swap(true, Ordering::AcqRel) {
+            return FrameOutcome::Busy;
+        }
+        let id = self.shared.next_request.fetch_add(1, Ordering::Relaxed);
+        let (reply, received) = channel();
+        let request = FrameRequest {
+            id,
+            epoch,
+            input,
+            deadline,
+            reply,
+            outstanding: self.shared.outstanding.clone(),
+        };
+        if self.cmds.send(Cmd::Present(request)).is_err() {
+            return FrameOutcome::NoFrame;
+        }
+        match received.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+            Ok((completed, outcome)) if completed == id => outcome,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => FrameOutcome::TimedOut,
+            _ => FrameOutcome::NoFrame,
+        }
     }
 
     /// L2 is momentary and takes precedence over fast forward, so this is a separate axis
@@ -436,7 +531,9 @@ impl EmuHandle {
     }
 
     pub fn set_rewinding(&self, on: bool) {
-        self.shared.rewind.store(on, Ordering::Relaxed);
+        if self.shared.rewind.swap(on, Ordering::Relaxed) != on {
+            let _ = self.cmds.send(Cmd::Wake);
+        }
     }
 
     pub fn rewind_fill(&self) -> u8 {
@@ -521,6 +618,7 @@ impl Snapshot for EmuSnapshot {
 impl Drop for EmuHandle {
     fn drop(&mut self) {
         self.shared.stop.store(true, Ordering::Relaxed);
+        let _ = self.cmds.send(Cmd::Wake);
         if let Some(join) = self.join.take() {
             let _ = join.join();
         }
@@ -687,9 +785,23 @@ impl Worker {
         let mut cable_said = Instant::now();
         let mut cable_core = Duration::ZERO;
         let mut cable_wait = Duration::ZERO;
+        let mut next_cmd = None;
+        let mut was_display_paced = false;
         while !self.shared.stop.load(Ordering::Relaxed) {
-            for cmd in self.cmds.try_iter() {
-                self.apply(cmd, core.as_mut(), &mut transport, &mut cable, &link);
+            let mut request = None;
+            for cmd in next_cmd.take().into_iter().chain(self.cmds.try_iter()) {
+                match cmd {
+                    Cmd::Present(frame) => {
+                        if frame.deadline <= Instant::now()
+                            || frame.epoch != self.shared.pacing_epoch.load(Ordering::Acquire)
+                        {
+                            frame.finish(FrameOutcome::NoFrame);
+                        } else {
+                            request = Some(frame);
+                        }
+                    }
+                    other => self.apply(other, core.as_mut(), &mut transport, &mut cable, &link),
+                }
             }
 
             // Pumped every present regardless of speed or phase, not only while the core is
@@ -792,6 +904,28 @@ impl Worker {
                 Speed::Normal => 1,
                 Speed::Fast => self.shared.fast_steps.load(Ordering::Relaxed),
             };
+            // A live link owns its clock. Menus may pause the local display, never its peer.
+            let display_paced =
+                self.shared.display_paced.load(Ordering::Acquire) && transport.is_none();
+            if display_paced != was_display_paced {
+                deadline = Instant::now();
+                was_display_paced = display_paced;
+            }
+            if request.as_ref().is_some_and(|r| {
+                !display_paced
+                    || speed == Speed::Paused
+                    || r.epoch != self.shared.pacing_epoch.load(Ordering::Acquire)
+                    || r.deadline <= Instant::now()
+            }) {
+                request.take().unwrap().finish(FrameOutcome::NoFrame);
+            }
+            if display_paced && request.is_none() {
+                // Commands use this same channel, so save/load/stop wake an idle core without
+                // needing a display tick. The timeout still services housekeeping regularly.
+                next_cmd = self.cmds.recv_timeout(PRESENT).ok();
+                continue;
+            }
+            let requested_input = request.as_ref().map(|r| r.input);
             if rewinding {
                 if let Some(state) = rewind.pop() {
                     if let Err(e) = core.unserialize(&state) {
@@ -816,6 +950,9 @@ impl Worker {
                     core.set_frame_skip(false);
                     core.run_frame(ButtonMask(0));
                     self.publish(core.video_xrgb8888());
+                    if let Some(frame) = request.take() {
+                        frame.finish(FrameOutcome::Published);
+                    }
                 }
                 self.shared
                     .rewind_fill
@@ -838,13 +975,19 @@ impl Worker {
                 // dropped present.
                 // What is left of the present for core frames once what follows them is paid.
                 let budget = FAST_TARGET.saturating_sub(post_cost);
+                let budget = request.as_ref().map_or(budget, |r| {
+                    budget.min(r.deadline.saturating_duration_since(Instant::now()))
+                });
                 let began = Instant::now();
                 let mut ran = 0u32;
                 let mut worst = Duration::ZERO;
                 loop {
                     ran += 1;
                     let last = ran >= ceiling || began.elapsed() + frame_peak * 2 > budget;
-                    let input = turbo.sample(self.shared.input.load(Ordering::Relaxed));
+                    let input = turbo.sample(
+                        requested_input
+                            .unwrap_or_else(|| self.shared.input.load(Ordering::Relaxed)),
+                    );
                     core.set_frame_skip(!last);
                     let frame_began = Instant::now();
                     match cable.as_mut() {
@@ -951,6 +1094,9 @@ impl Worker {
                 // frames reports a communication error, which is what it should do.
                 flush_outbound(&mut transport, &link);
                 self.publish(core.video_xrgb8888());
+                if let Some(frame) = request.take() {
+                    frame.finish(FrameOutcome::Published);
+                }
 
                 // Counted per present rather than per frame, so a fast forward pays the
                 // same snapshot cost per present as normal play and simply records a
@@ -1026,6 +1172,13 @@ impl Worker {
             if let Some((began, core_time)) = fast_span.take() {
                 post_cost = blend(post_cost, began.elapsed().saturating_sub(core_time));
             }
+            // An empty rewind still completes its request; there simply is no new image.
+            if let Some(frame) = request.take() {
+                frame.finish(FrameOutcome::NoFrame);
+            }
+            if display_paced {
+                continue;
+            }
             deadline += PRESENT;
             let now = Instant::now();
             match deadline.checked_duration_since(now) {
@@ -1049,7 +1202,7 @@ impl Worker {
         // their position lost. Draining once more costs nothing on the ordinary path, where
         // the queue is already empty, and the core is still alive here to answer with — it is
         // dropped when this function returns, not when the flag went up.
-        for cmd in self.cmds.try_iter() {
+        for cmd in next_cmd.into_iter().chain(self.cmds.try_iter()) {
             self.apply(cmd, core.as_mut(), &mut transport, &mut cable, &link);
         }
         // The ring belongs to the session, so a cart that left while fast forwarding would
@@ -1077,6 +1230,8 @@ impl Worker {
         link: &Link,
     ) {
         match cmd {
+            Cmd::Wake => {}
+            Cmd::Present(frame) => frame.finish(FrameOutcome::NoFrame),
             Cmd::Save(reply) => match core.serialize() {
                 Ok(state) => {
                     let _ = reply.send(state);

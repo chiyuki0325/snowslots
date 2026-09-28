@@ -451,8 +451,21 @@ impl Frontend {
         compositor.draw_list(&self.draws);
     }
 
-    /// Input and time, after the frame is on screen. The gesture windows expire on this
-    /// whether or not anything was pressed, so it is called every frame.
+    /// Read once at the start of the device frame; the host retains its own event loop.
+    pub fn low_latency(&self) -> bool {
+        self.session.app().low_latency()
+    }
+
+    pub fn set_display_paced(&mut self, enabled: bool) {
+        self.session.set_display_paced(enabled);
+    }
+
+    pub fn request_frame_until(&self, deadline: Instant) {
+        self.session.request_frame_until(deadline);
+    }
+
+    /// Input and time, once per frame. The device experiment moves this before rendering;
+    /// otherwise it follows presentation. Gesture windows expire even without a press.
     pub fn advance(&mut self, input: &mut dyn InputSource) {
         self.session.app_mut().start_library_refresh();
         let now = self.now();

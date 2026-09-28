@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use slot::frame_loop::{run_frame, FrameStep, CORE_WAIT_BUDGET};
 use slot::frontend::Frontend;
 use slot::input::DeviceInput;
 use slot_gfx::{Compositor, FbdevSurface, Surface};
@@ -40,12 +41,20 @@ pub fn run() {
     let mut input = DeviceInput::open(&root);
     loop {
         let began = Instant::now();
-        frontend.render(&mut compositor, surface.window_size());
-        if let Err(e) = surface.swap() {
+        let low_latency = frontend.low_latency();
+        frontend.set_display_paced(low_latency);
+        if let Err(e) = run_frame(low_latency, |step| {
+            match step {
+                FrameStep::Advance => frontend.advance(&mut input),
+                FrameStep::Emulate => frontend.request_frame_until(began + CORE_WAIT_BUDGET),
+                FrameStep::Render => frontend.render(&mut compositor, surface.window_size()),
+                FrameStep::Swap => return surface.swap(),
+            }
+            Ok(())
+        }) {
             eprintln!("slot: {e}");
             return;
         }
-        frontend.advance(&mut input);
         if frontend.restarting() {
             frontend.restart();
         }

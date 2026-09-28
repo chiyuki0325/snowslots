@@ -86,9 +86,7 @@ fn the_fast_forward_row_offers_the_four_ceilings_the_card_can_hold() {
     }
 }
 
-/// The fast-forward rows stay together above Colour Correction and Rumble.
-/// `QuickRow::ALL`'s own comment is where
-/// that position is argued; this is what holds it.
+/// The fast-forward rows stay together, followed by the experiment and the other settings.
 #[test]
 fn the_rows_run_in_the_order_the_user_chose() {
     let labels = QuickRow::ALL.map(QuickRow::label);
@@ -98,6 +96,7 @@ fn the_rows_run_in_the_order_the_user_chose() {
             "快速前进",
             "快进声音",
             "快进原调",
+            "低延迟（实验）",
             "色彩校正",
             "震动",
             "日期与时间",

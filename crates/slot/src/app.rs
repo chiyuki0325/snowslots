@@ -855,6 +855,7 @@ impl App {
             QuickRow::FastForward => QuickValue::speed(self.state.ff_speed),
             QuickRow::FastForwardSound => Some(QuickValue::flag(self.state.ff_sound)),
             QuickRow::FastForwardPitch => Some(QuickValue::flag(self.state.ff_pitch)),
+            QuickRow::LowLatency => Some(QuickValue::flag(self.state.low_latency)),
             QuickRow::ColourCorrection => Some(QuickValue::flag(self.state.colour_correction)),
             QuickRow::Rumble => Some(QuickValue::flag(self.state.rumble)),
             QuickRow::DateTime | QuickRow::About => None,
@@ -1290,6 +1291,10 @@ impl App {
 
     pub fn ff_pitch(&self) -> bool {
         self.state.ff_pitch
+    }
+
+    pub fn low_latency(&self) -> bool {
+        self.state.low_latency
     }
 
     /// Whether a core loaded from here on is asked to tint its picture like the console's own
@@ -1742,6 +1747,7 @@ impl App {
             QuickRow::FastForward
             | QuickRow::FastForwardSound
             | QuickRow::FastForwardPitch
+            | QuickRow::LowLatency
             | QuickRow::ColourCorrection
             | QuickRow::Rumble => {}
         }
@@ -1763,6 +1769,7 @@ impl App {
             // Two values each, so either arrow is the other one.
             QuickRow::FastForwardSound => s.ff_sound = !s.ff_sound,
             QuickRow::FastForwardPitch => s.ff_pitch = !s.ff_pitch,
+            QuickRow::LowLatency => s.low_latency = !s.low_latency,
             QuickRow::ColourCorrection => {
                 s.colour_correction = !s.colour_correction;
                 // Carried to the running core as well as written down. Without this the row

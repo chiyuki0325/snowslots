@@ -195,6 +195,10 @@ fn a_first_boot_rumbles_and_fast_forwards_silently_at_the_default() {
     assert_eq!(s.ff_speed, FF_SPEED_DEFAULT);
     assert!(!s.ff_sound, "boots with fast forward audible");
     assert!(!s.ff_pitch, "boots with pitch correction enabled");
+    assert!(
+        !s.low_latency,
+        "boots with experimental input timing enabled"
+    );
     assert!(!s.colour_correction, "boots with the picture tinted");
 }
 
@@ -223,6 +227,7 @@ fn a_card_from_before_the_settings_keeps_all_its_values() {
             ff_speed: FF_SPEED_DEFAULT,
             ff_sound: false,
             ff_pitch: false,
+            low_latency: false,
             colour_correction: false,
         }
     );
@@ -237,6 +242,7 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         ff_speed: 2,
         ff_sound: true,
         ff_pitch: true,
+        low_latency: true,
         colour_correction: true,
         ..SlotState::default()
     };
@@ -248,6 +254,7 @@ fn the_quick_menu_settings_round_trip_as_their_own_lines() {
         "ff_speed=2",
         "ff_sound=1",
         "ff_pitch=1",
+        "low_latency=1",
         "colour_correction=1",
     ] {
         assert!(text.lines().any(|l| l == line), "no {line} in {text:?}");
@@ -326,6 +333,10 @@ fn an_out_of_range_setting_falls_back_to_its_default() {
         "ff_speed=255\n",
         "ff_pitch=2\n",
         "ff_pitch=on\n",
+        "low_latency=2\n",
+        "low_latency=-1\n",
+        "low_latency=on\n",
+        "low_latency=\n",
     ] {
         std::fs::write(d.path().join("System/slot.state"), format!("{known}{bad}")).unwrap();
         let s = read_slot_state(d.path());
@@ -335,9 +346,10 @@ fn an_out_of_range_setting_falls_back_to_its_default() {
                 s.ff_speed,
                 s.ff_sound,
                 s.ff_pitch,
+                s.low_latency,
                 s.colour_correction
             ),
-            (true, FF_SPEED_DEFAULT, false, false, false),
+            (true, FF_SPEED_DEFAULT, false, false, false, false),
             "accepted {bad:?}"
         );
         assert_eq!(

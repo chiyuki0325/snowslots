@@ -117,6 +117,7 @@ fn up_and_down_move_the_bar_and_stop_at_the_ends() {
     for want in [
         QuickRow::FastForwardSound,
         QuickRow::FastForwardPitch,
+        QuickRow::LowLatency,
         QuickRow::ColourCorrection,
         QuickRow::Rumble,
         QuickRow::DateTime,
@@ -174,8 +175,8 @@ fn rumble_and_fast_forward_sound_flip_on_either_arrow_and_save() {
     );
     press(&mut a, Btn::Right);
     assert_eq!(card(&d), (false, true));
-    // Past pitch and colour correction to Rumble.
-    for _ in 0..3 {
+    // Past pitch, low latency and colour correction to Rumble.
+    for _ in 0..4 {
         press(&mut a, Btn::Down);
     }
     press(&mut a, Btn::Right);
@@ -208,6 +209,37 @@ fn fast_forward_pitch_flips_and_survives_restart_without_enabling_sound() {
     assert!(!state.ff_sound);
     press(&mut a, Btn::Left);
     assert!(!read_slot_state(d.path()).ff_pitch);
+}
+
+#[test]
+fn low_latency_flips_on_either_arrow_and_survives_restart() {
+    let (d, mut a, _) = on_carousel();
+    assert!(!a.low_latency());
+    open_at(&mut a, QuickRow::LowLatency);
+    assert_eq!(a.quick_value(QuickRow::LowLatency), Some(QuickValue::Off));
+    for (btn, want) in [(Btn::Right, true), (Btn::Left, false), (Btn::Left, true)] {
+        let mut expected = read_slot_state(d.path());
+        expected.low_latency = want;
+        press(&mut a, btn);
+        assert_eq!(a.low_latency(), want);
+        assert_eq!(a.quick_menu(), Some(QuickRow::LowLatency));
+        assert_eq!(
+            a.quick_value(QuickRow::LowLatency),
+            Some(QuickValue::flag(want))
+        );
+        assert_eq!(read_slot_state(d.path()), expected);
+    }
+    press(&mut a, Btn::B);
+    assert!(matches!(a.phase(), Phase::Shelf));
+    let (mut restarted, _) = app_booting_at(d.path(), CLOCK_IS_SET);
+    assert!(restarted.low_latency());
+    restarted.apply(Action::Insert);
+    restarted.on_core_ready();
+    for _ in 0..120 {
+        restarted.update(1.0 / 60.0);
+    }
+    assert!(matches!(restarted.phase(), Phase::Playing { .. }));
+    assert!(restarted.low_latency());
 }
 
 #[test]

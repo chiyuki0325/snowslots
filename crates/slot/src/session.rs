@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Instant;
 
 use slot_input::{Action, Gestures, Millis, RawEvent};
 use slot_retro::Rumble;
@@ -7,7 +8,7 @@ use slot_ui::FfState;
 use crate::app::{App, Phase};
 use crate::audio::{open_sink, AudioSink, Ring, Sfx, GBA_HZ};
 use crate::core::open_core;
-use crate::emu::{CoreState, EmuHandle, Speed};
+use crate::emu::{CoreState, EmuHandle, FrameOutcome, Speed};
 use crate::frames::FrameRef;
 use crate::input::Pad;
 use crate::persist;
@@ -32,6 +33,8 @@ pub struct Session {
     /// A reload for a link is underway: the core in the slot was spawned for it, and `App` is
     /// waiting to hear whether it loaded. See `reload_for_link`.
     reloading: bool,
+    /// Opted into only by the device loop, independently of the saved menu preference.
+    display_paced: bool,
 }
 
 impl Session {
@@ -53,6 +56,7 @@ impl Session {
             fast: false,
             motor: 0,
             reloading: false,
+            display_paced: false,
         }
     }
 
@@ -116,6 +120,22 @@ impl Session {
 
     pub fn frame(&self) -> Option<FrameRef> {
         self.emu.as_ref().and_then(|e| e.latest_frame())
+    }
+
+    pub fn set_display_paced(&mut self, enabled: bool) {
+        self.display_paced = enabled;
+        if let Some(emu) = &self.emu {
+            emu.set_display_paced(enabled && !self.app.link_active());
+        }
+    }
+
+    pub fn request_frame_until(&self, deadline: Instant) -> FrameOutcome {
+        if !self.display_paced || self.app.link_active() {
+            return FrameOutcome::NoFrame;
+        }
+        self.emu.as_ref().map_or(FrameOutcome::NoFrame, |emu| {
+            emu.request_frame_until(deadline)
+        })
     }
 
     /// A cart in the slot is a core running, so this is also "is there a game layer".
@@ -442,6 +462,7 @@ impl Session {
     /// frames, so the compositor keeps showing the last one behind the cards.
     fn sync_speed(&self) {
         if let Some(emu) = &self.emu {
+            emu.set_display_paced(self.display_paced && !self.app.link_active());
             // Ahead of the speed, so the first fast present already runs at the chosen one. The
             // quick menu lives on the shelf and these cannot change under a seated cart, but the
             // next cart seated after they did picks them up here.
@@ -587,6 +608,7 @@ impl Session {
             persist::read_sav_for_platform(&self.root, platform, stem),
             resume,
         );
+        emu.set_display_paced(self.display_paced && !self.app.link_active());
         // A cart seated after the level was lowered has to start there, not at full.
         emu.set_volume(self.app.output_volume());
         self.app.set_snapshot(Box::new(emu.snapshot()));
