@@ -129,6 +129,50 @@ fn mgba_reports_gba_geometry_and_round_trips_state() {
 }
 
 #[test]
+fn repeated_snapshots_restore_their_own_frames_after_reload() {
+    let _g = lock();
+    let Some(mut c) = test_core() else { return };
+    let rom = test_rom();
+    c.load(&rom).unwrap();
+    let idle = ButtonMask::default();
+    for _ in 0..60 {
+        c.run_frame(idle);
+    }
+    let first = c.serialize().unwrap();
+    c.run_frame(idle);
+    let first_frame = c.video_xrgb8888().to_vec();
+    for _ in 0..29 {
+        c.run_frame(idle);
+    }
+    let second = c.serialize().unwrap();
+    c.run_frame(idle);
+    let second_frame = c.video_xrgb8888().to_vec();
+    assert_ne!(first, second, "a cached size must not cache the state");
+    assert_ne!(first_frame, second_frame);
+
+    for (state, frame) in [(&first, &first_frame), (&second, &second_frame)] {
+        c.unserialize(state).unwrap();
+        let saved_again = c.serialize().unwrap();
+        c.run_frame(idle);
+        assert_eq!(c.video_xrgb8888(), frame);
+        c.unserialize(&saved_again).unwrap();
+        c.run_frame(idle);
+        assert_eq!(c.video_xrgb8888(), frame);
+    }
+
+    c.load(&rom).unwrap();
+    for _ in 0..60 {
+        c.run_frame(idle);
+    }
+    let reloaded = c.serialize().unwrap();
+    c.run_frame(idle);
+    assert_eq!(c.video_xrgb8888(), first_frame);
+    c.unserialize(&reloaded).unwrap();
+    c.run_frame(idle);
+    assert_eq!(c.video_xrgb8888(), first_frame);
+}
+
+#[test]
 fn audio_arrives_at_roughly_the_reported_sample_rate() {
     let _g = lock();
     let Some(mut c) = test_core() else { return };

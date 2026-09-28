@@ -566,7 +566,44 @@ pub struct LibretroCore {
     rom_path: Option<CString>,
     av: AvInfo,
     loaded: bool,
+    serialize_size: Option<usize>,
     _lib: Library,
+}
+
+/// Querying mGBA's state size generates a whole savestate. Reuse the last successful
+/// buffer size, not its contents: every call still serializes the current machine. A core
+/// may need a different size after discovering savedata, so a cached refusal gets one size
+/// refresh and, only if that changed, one retry. Failure leaves no cached size behind.
+fn serialize_state(
+    cached_size: &mut Option<usize>,
+    mut size_of: impl FnMut() -> usize,
+    mut write: impl FnMut(&mut [u8]) -> bool,
+) -> Result<Vec<u8>, CoreError> {
+    let cached = cached_size.take();
+    let size = cached.unwrap_or_else(&mut size_of);
+    if size == 0 {
+        return Err(CoreError::State("core reports no state".into()));
+    }
+    // Some cores accept a larger buffer and leave its tail untouched.
+    let mut buf = vec![0u8; size];
+    if write(&mut buf) {
+        *cached_size = Some(size);
+        return Ok(buf);
+    }
+    if cached.is_some() {
+        let size = size_of();
+        if size == 0 {
+            return Err(CoreError::State("core reports no state".into()));
+        }
+        if size != buf.len() {
+            buf = vec![0u8; size];
+            if write(&mut buf) {
+                *cached_size = Some(size);
+                return Ok(buf);
+            }
+        }
+    }
+    Err(CoreError::State("serialize refused".into()))
 }
 
 fn cdir(path: &Path) -> Result<CString, CoreError> {
@@ -638,6 +675,7 @@ impl LibretroCore {
         let Ok(value) = CString::new(value) else {
             return;
         };
+        self.serialize_size = None;
         self.host.options.insert(key.to_string(), value);
         self.host.options_dirty = true;
     }
@@ -719,11 +757,13 @@ impl LibretroCore {
                 sample_rate: 0.0,
             },
             loaded: false,
+            serialize_size: None,
             _lib: lib,
         })
     }
 
     fn unload(&mut self) {
+        self.serialize_size = None;
         if !self.loaded {
             return;
         }
@@ -835,23 +875,16 @@ impl RetroCore for LibretroCore {
     }
 
     fn serialize(&mut self) -> Result<Vec<u8>, CoreError> {
-        let size = unsafe { (self.api.serialize_size)() };
-        if size == 0 {
-            return Err(CoreError::State("core reports no state".into()));
-        }
-        let mut buf = vec![0u8; size];
-        let ok = {
-            let _a = Active::bind(&mut self.host);
-            unsafe { (self.api.serialize)(buf.as_mut_ptr() as *mut c_void, size) }
-        };
-        if ok {
-            Ok(buf)
-        } else {
-            Err(CoreError::State("serialize refused".into()))
-        }
+        let _a = Active::bind(&mut self.host);
+        serialize_state(
+            &mut self.serialize_size,
+            || unsafe { (self.api.serialize_size)() },
+            |buf| unsafe { (self.api.serialize)(buf.as_mut_ptr() as *mut c_void, buf.len()) },
+        )
     }
 
     fn unserialize(&mut self, data: &[u8]) -> Result<(), CoreError> {
+        self.serialize_size = None;
         let ok = {
             let _a = Active::bind(&mut self.host);
             unsafe { (self.api.unserialize)(data.as_ptr() as *const c_void, data.len()) }
@@ -873,6 +906,7 @@ impl RetroCore for LibretroCore {
     }
 
     fn load_save_ram(&mut self, data: &[u8]) -> Result<(), CoreError> {
+        self.serialize_size = None;
         let dst = unsafe { (self.api.get_memory_data)(MEMORY_SAVE_RAM) };
         let len = unsafe { (self.api.get_memory_size)(MEMORY_SAVE_RAM) };
         if dst.is_null() || len == 0 {
@@ -900,6 +934,7 @@ impl RetroCore for LibretroCore {
     /// `begin_link` carries the actual logic — see it for why a core that never registered
     /// netpacket leaves `net` unmarked rather than lying that a session is live.
     fn start_link(&mut self, client_id: u16) {
+        self.serialize_size = None;
         let _a = Active::bind(&mut self.host);
         unsafe { begin_link(client_id) };
     }
@@ -920,6 +955,7 @@ impl RetroCore for LibretroCore {
     /// `start_link`/`pump_link`, since `stop` runs on the core's own thread and may itself
     /// reach back through the thread-local.
     fn stop_link(&mut self) {
+        self.serialize_size = None;
         let _a = Active::bind(&mut self.host);
         unsafe { halt_link() };
     }
@@ -931,6 +967,120 @@ mod tests {
     use std::cell::RefCell;
     use std::collections::HashMap;
     use std::ffi::CStr;
+
+    #[test]
+    fn serialize_reuses_size_but_writes_every_state() {
+        let mut cached = None;
+        let mut queries = 0;
+        let mut writes = 0;
+        for frame in 1..=4 {
+            let state = serialize_state(
+                &mut cached,
+                || {
+                    queries += 1;
+                    8
+                },
+                |buf| {
+                    writes += 1;
+                    buf.fill(frame);
+                    true
+                },
+            )
+            .unwrap();
+            assert_eq!(state, vec![frame; 8]);
+            assert_eq!(cached, Some(8));
+        }
+        assert_eq!(queries, 1);
+        assert_eq!(writes, 4);
+    }
+
+    #[test]
+    fn serialize_refreshes_changed_size_once() {
+        // Growth, and a core which insists on an exact size even when it shrinks.
+        for new_size in [16, 4] {
+            let mut cached = Some(8);
+            let mut queries = 0;
+            let mut sizes = Vec::new();
+            let state = serialize_state(
+                &mut cached,
+                || {
+                    queries += 1;
+                    new_size
+                },
+                |buf| {
+                    sizes.push(buf.len());
+                    buf.fill(7);
+                    buf.len() == new_size
+                },
+            )
+            .unwrap();
+            assert_eq!(state, vec![7; new_size]);
+            assert_eq!(cached, Some(new_size));
+            assert_eq!(queries, 1);
+            assert_eq!(sizes, [8, new_size]);
+        }
+    }
+
+    #[test]
+    fn serialize_keeps_unwritten_tail_zero() {
+        let mut cached = Some(8);
+        let state = serialize_state(
+            &mut cached,
+            || panic!("a successful cached write needs no size query"),
+            |buf| {
+                buf[..4].fill(7);
+                true
+            },
+        )
+        .unwrap();
+        assert_eq!(state, [7, 7, 7, 7, 0, 0, 0, 0]);
+        assert_eq!(cached, Some(8));
+    }
+
+    #[test]
+    fn serialize_zero_size_is_not_cached() {
+        let mut cached = None;
+        let result = serialize_state(&mut cached, || 0, |_| panic!("no state to write"));
+        assert!(matches!(result, Err(CoreError::State(s)) if s == "core reports no state"));
+        assert_eq!(cached, None);
+        let state = serialize_state(&mut cached, || 8, |_| true).unwrap();
+        assert_eq!(state.len(), 8);
+        assert_eq!(cached, Some(8));
+    }
+
+    #[test]
+    fn serialize_failure_clears_size_and_bounds_retries() {
+        for (initial, size, expected_writes) in [
+            (None, 8, 1),
+            (Some(8), 8, 1),
+            (Some(8), 16, 2),
+            (Some(8), 0, 1),
+        ] {
+            let mut cached = initial;
+            let mut queries = 0;
+            let mut writes = 0;
+            let result = serialize_state(
+                &mut cached,
+                || {
+                    queries += 1;
+                    size
+                },
+                |_| {
+                    writes += 1;
+                    false
+                },
+            );
+            let message = if size == 0 {
+                "core reports no state"
+            } else {
+                "serialize refused"
+            };
+            assert!(matches!(result, Err(CoreError::State(s)) if s == message));
+            assert_eq!(queries, 1);
+            assert_eq!(writes, expected_writes);
+            assert_eq!(cached, None);
+        }
+    }
 
     // `crates/slot-retro/tests/options.rs` calls `LibretroCore::set_option`/`option`, which are
     // a HashMap round trip and never reach `environment` at all — reverting the whole of the
