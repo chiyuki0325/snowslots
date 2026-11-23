@@ -68,6 +68,48 @@ fn frame_count(emu: &EmuHandle) -> u64 {
 }
 
 #[test]
+fn asynchronous_save_captures_state_and_ram_in_one_request() {
+    let emu = spawn();
+    let snapshot = emu.snapshot();
+    let capture = snapshot
+        .request_save(true)
+        .unwrap()
+        .recv_timeout(Duration::from_secs(2))
+        .unwrap();
+    assert_eq!(capture.state.unwrap().len(), 8);
+    assert_eq!(capture.sav.unwrap().len(), 8192);
+    let capture = snapshot
+        .request_save(false)
+        .unwrap()
+        .recv_timeout(Duration::from_secs(2))
+        .unwrap();
+    assert!(capture.state.is_none());
+    assert!(capture.sav.is_some());
+}
+
+#[test]
+fn asynchronous_save_never_overwrites_refused_state_or_ram() {
+    let emu = spawn();
+    let snapshot = emu.snapshot();
+    emu.refuse_resume();
+    let capture = snapshot
+        .request_save(true)
+        .unwrap()
+        .recv_timeout(Duration::from_secs(2))
+        .unwrap();
+    assert!(capture.state.is_none());
+    assert!(capture.sav.is_some());
+    emu.refuse_save_ram();
+    let capture = snapshot
+        .request_save(true)
+        .unwrap()
+        .recv_timeout(Duration::from_secs(2))
+        .unwrap();
+    assert!(capture.state.is_none());
+    assert!(capture.sav.is_none());
+}
+
+#[test]
 fn the_worker_runs_until_it_is_paused_and_resumes_where_it_stopped() {
     let emu = spawn();
     let early = frame_count(&emu);
@@ -220,6 +262,8 @@ struct Probe {
     cost: Duration,
     skip: bool,
     log: Arc<Mutex<Vec<bool>>>,
+    capture_gate: Option<(mpsc::Sender<()>, mpsc::Receiver<()>)>,
+    serialize_fails: bool,
 }
 
 impl Probe {
@@ -230,6 +274,8 @@ impl Probe {
             cost,
             skip: false,
             log: log.clone(),
+            capture_gate: None,
+            serialize_fails: false,
         });
         (probe, log)
     }
@@ -257,6 +303,13 @@ impl RetroCore for Probe {
         self.inner.take_audio()
     }
     fn serialize(&mut self) -> Result<Vec<u8>, CoreError> {
+        if let Some((started, release)) = self.capture_gate.take() {
+            started.send(()).unwrap();
+            release.recv_timeout(Duration::from_secs(2)).unwrap();
+        }
+        if self.serialize_fails {
+            return Err(CoreError::State("test serialization failure".into()));
+        }
         self.inner.serialize()
     }
     fn unserialize(&mut self, data: &[u8]) -> Result<(), CoreError> {
@@ -271,6 +324,52 @@ impl RetroCore for Probe {
     fn av_info(&self) -> AvInfo {
         self.inner.av_info()
     }
+}
+
+#[test]
+fn asynchronous_save_does_not_queue_even_after_its_receiver_is_dropped() {
+    let (mut core, _) = Probe::new(Duration::ZERO);
+    let (started, entered) = mpsc::channel();
+    let (release, gate) = mpsc::channel();
+    core.capture_gate = Some((started, gate));
+    let mut sink = StubSink::new();
+    sink.open(32_768).unwrap();
+    let emu = EmuHandle::spawn(core, "mock".into(), sink.ring(), None, None);
+    assert!(wait_for(|| emu.state() == CoreState::Ready));
+    let snapshot = emu.snapshot();
+    let receive = snapshot.request_save(true).unwrap();
+    entered.recv_timeout(Duration::from_secs(2)).unwrap();
+    assert!(snapshot.request_save(true).is_none());
+    drop(receive);
+    assert!(snapshot.request_save(true).is_none());
+    release.send(()).unwrap();
+    assert!(wait_for(|| {
+        let Some(receive) = snapshot.request_save(false) else {
+            return false;
+        };
+        assert!(receive
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap()
+            .sav
+            .is_some());
+        true
+    }));
+}
+
+#[test]
+fn asynchronous_save_keeps_trusted_ram_when_serialization_fails() {
+    let (mut core, _) = Probe::new(Duration::ZERO);
+    core.serialize_fails = true;
+    let emu = spawn_with_core(core);
+    emu.set_rewind_recording(false);
+    let capture = emu
+        .snapshot()
+        .request_save(true)
+        .unwrap()
+        .recv_timeout(Duration::from_secs(2))
+        .unwrap();
+    assert!(capture.state.is_none());
+    assert!(capture.sav.is_some());
 }
 
 fn spawn_probe(cost: Duration) -> (EmuHandle, Arc<Mutex<Vec<bool>>>) {

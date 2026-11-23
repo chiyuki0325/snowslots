@@ -170,8 +170,10 @@ fn the_autosave_repeats_rather_than_firing_once() {
     let (snapshot, flushes) = counting();
     let mut a = app_playing_with(d.path(), "Emerald", snapshot);
     a.tick_ms(300_000);
+    a.settle_saves();
     assert_eq!(flushes.load(Ordering::Relaxed), 1);
     a.tick_ms(599_999);
+    a.settle_saves();
     assert_eq!(
         flushes.load(Ordering::Relaxed),
         1,
@@ -191,6 +193,7 @@ fn a_flush_resets_the_autosave_clock() {
     a.apply(Action::LidOpen);
     assert_eq!(flushes.load(Ordering::Relaxed), 1);
     a.tick_ms(301_000);
+    a.settle_saves();
     assert_eq!(
         flushes.load(Ordering::Relaxed),
         1,
@@ -215,6 +218,13 @@ struct CountingSnapshot {
 }
 
 impl Snapshot for CountingSnapshot {
+    fn request_save(
+        &self,
+        resume: bool,
+    ) -> Option<std::sync::mpsc::Receiver<persist::SaveCapture>> {
+        Some(common::ready_save(self, resume))
+    }
+
     fn state(&self) -> Option<Vec<u8>> {
         Some(vec![self.flushes.fetch_add(1, Ordering::Relaxed) as u8; 64])
     }
@@ -240,6 +250,13 @@ struct SavingSnapshot {
 }
 
 impl Snapshot for SavingSnapshot {
+    fn request_save(
+        &self,
+        resume: bool,
+    ) -> Option<std::sync::mpsc::Receiver<persist::SaveCapture>> {
+        Some(common::ready_save(self, resume))
+    }
+
     fn state(&self) -> Option<Vec<u8>> {
         Some(vec![3u8; 64])
     }
@@ -253,6 +270,144 @@ impl Snapshot for SavingSnapshot {
     }
 
     fn load(&self, _state: Vec<u8>) {}
+}
+
+type CaptureReply = std::sync::mpsc::Sender<persist::SaveCapture>;
+
+struct DeferredSnapshot {
+    reply: Arc<std::sync::Mutex<Option<CaptureReply>>>,
+    requests: Arc<std::sync::Mutex<Vec<bool>>>,
+}
+
+impl Snapshot for DeferredSnapshot {
+    fn request_save(
+        &self,
+        resume: bool,
+    ) -> Option<std::sync::mpsc::Receiver<persist::SaveCapture>> {
+        let (reply, receive) = std::sync::mpsc::channel();
+        self.requests.lock().unwrap().push(resume);
+        *self.reply.lock().unwrap() = Some(reply);
+        Some(receive)
+    }
+
+    fn state(&self) -> Option<Vec<u8>> {
+        Some(vec![9; 64])
+    }
+
+    fn save_ram(&self) -> Option<Vec<u8>> {
+        Some(vec![9; 32])
+    }
+
+    fn thumb(&self) -> Option<Vec<u8>> {
+        None
+    }
+
+    fn load(&self, _state: Vec<u8>) {}
+}
+
+fn deferred() -> DeferredSnapshot {
+    DeferredSnapshot {
+        reply: Arc::default(),
+        requests: Arc::default(),
+    }
+}
+
+#[test]
+fn pending_capture_does_not_block_or_queue_and_the_resume_remains_due() {
+    let root = tmp_root_with_carts(&["Emerald"]);
+    let snapshot = deferred();
+    let reply = snapshot.reply.clone();
+    let requests = snapshot.requests.clone();
+    let mut app = app_playing_with(root.path(), "Emerald", Box::new(snapshot));
+    app.tick_ms(60_000);
+    app.tick_ms(120_000);
+    app.tick_ms(300_000);
+    assert_eq!(*requests.lock().unwrap(), [false]);
+    reply
+        .lock()
+        .unwrap()
+        .take()
+        .unwrap()
+        .send(persist::SaveCapture {
+            state: None,
+            sav: Some(vec![1; 32]),
+        })
+        .unwrap();
+    app.settle_saves();
+    assert_eq!(
+        persist::read_sav(root.path(), Platform::Gba, "Emerald").unwrap(),
+        Some(vec![1; 32])
+    );
+    app.tick_ms(300_001);
+    assert_eq!(*requests.lock().unwrap(), [false, true]);
+    reply
+        .lock()
+        .unwrap()
+        .take()
+        .unwrap()
+        .send(persist::SaveCapture {
+            state: Some(vec![2; 64]),
+            sav: Some(vec![2; 32]),
+        })
+        .unwrap();
+    app.settle_saves();
+    assert_eq!(
+        StateRing::new(root.path(), Platform::Gba, Core::Mgba, "Emerald")
+            .read_resume()
+            .unwrap(),
+        Some(vec![2; 64])
+    );
+}
+
+#[test]
+fn a_mandatory_flush_waits_for_the_old_capture_before_writing_a_fresh_one() {
+    let root = tmp_root_with_carts(&["Emerald"]);
+    let snapshot = deferred();
+    let reply = snapshot.reply.clone();
+    let mut app = app_playing_with(root.path(), "Emerald", Box::new(snapshot));
+    app.tick_ms(300_000);
+    reply
+        .lock()
+        .unwrap()
+        .take()
+        .unwrap()
+        .send(persist::SaveCapture {
+            state: Some(vec![1; 64]),
+            sav: Some(vec![1; 32]),
+        })
+        .unwrap();
+    app.flush_resume();
+    assert_eq!(
+        StateRing::new(root.path(), Platform::Gba, Core::Mgba, "Emerald")
+            .read_resume()
+            .unwrap(),
+        Some(vec![9; 64])
+    );
+    assert_eq!(
+        persist::read_sav(root.path(), Platform::Gba, "Emerald").unwrap(),
+        Some(vec![9; 32])
+    );
+}
+
+#[test]
+fn a_disconnected_capture_leaves_saved_data_alone_and_allows_retry() {
+    let root = tmp_root_with_carts(&["Emerald"]);
+    persist::write_sav(root.path(), Platform::Gba, "Emerald", &[7; 32]).unwrap();
+    let snapshot = deferred();
+    let reply = snapshot.reply.clone();
+    let requests = snapshot.requests.clone();
+    let mut app = app_playing_with(root.path(), "Emerald", Box::new(snapshot));
+    app.tick_ms(60_000);
+    drop(reply.lock().unwrap().take());
+    app.settle_saves();
+    assert_eq!(
+        persist::read_sav(root.path(), Platform::Gba, "Emerald").unwrap(),
+        Some(vec![7; 32])
+    );
+    app.tick_ms(120_000);
+    assert_eq!(*requests.lock().unwrap(), [false, false]);
+    drop(reply.lock().unwrap().take());
+    app.settle_saves();
 }
 
 fn at(percent: u8, charge: Charge) -> Battery {

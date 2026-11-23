@@ -1,15 +1,25 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::Receiver;
 
 use slot_store::{
     atomic_write, find_file_by_stem, write_slot_state, Core, Platform, SlotState, StateRing,
 };
+
+pub struct SaveCapture {
+    pub state: Option<Vec<u8>>,
+    pub sav: Option<Vec<u8>>,
+}
 
 pub trait Snapshot {
     fn state(&self) -> Option<Vec<u8>>;
     fn save_ram(&self) -> Option<Vec<u8>>;
     fn thumb(&self) -> Option<Vec<u8>>;
     fn load(&self, state: Vec<u8>);
+
+    fn request_save(&self, _resume: bool) -> Option<Receiver<SaveCapture>> {
+        None
+    }
 
     fn reset(&self) {}
 

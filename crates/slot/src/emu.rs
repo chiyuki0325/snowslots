@@ -12,7 +12,7 @@ use crate::audio::Ring;
 use crate::drc::{drc_ratio, drc_target};
 use crate::frames::{FrameRef, Frames};
 use crate::link_state;
-use crate::persist::Snapshot;
+use crate::persist::{SaveCapture, Snapshot};
 use crate::pitch::PitchStretch;
 use crate::resample::Resampler;
 use crate::rewind::{RewindThread, REWIND_BYTES};
@@ -80,6 +80,7 @@ enum Cmd {
     Load(Vec<u8>),
     Save(Sender<Vec<u8>>),
     Sav(Sender<Option<Vec<u8>>>),
+    Capture(bool, Sender<SaveCapture>),
     Thumb(Sender<Option<Vec<u8>>>),
     BeginLink(u16, Box<dyn LinkChannel>),
     EndLink,
@@ -117,6 +118,7 @@ struct Shared {
     locked: AtomicBool,
     present_ns: AtomicU64,
     requested: AtomicBool,
+    capture_pending: AtomicBool,
     clock: Mutex<Clock>,
     clocked: Condvar,
 }
@@ -222,6 +224,7 @@ impl EmuHandle {
             locked: AtomicBool::new(false),
             present_ns: AtomicU64::new(PRESENT.as_nanos() as u64),
             requested: AtomicBool::new(false),
+            capture_pending: AtomicBool::new(false),
             clock: Mutex::new(Clock::default()),
             clocked: Condvar::new(),
         });
@@ -477,6 +480,24 @@ pub struct EmuSnapshot {
 }
 
 impl Snapshot for EmuSnapshot {
+    fn request_save(&self, resume: bool) -> Option<Receiver<SaveCapture>> {
+        if self
+            .shared
+            .capture_pending
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return None;
+        }
+        let (reply, receive) = channel();
+        if request(&self.cmds, &self.shared, Cmd::Capture(resume, reply)) {
+            Some(receive)
+        } else {
+            self.shared.capture_pending.store(false, Ordering::Release);
+            None
+        }
+    }
+
     fn state(&self) -> Option<Vec<u8>> {
         let (tx, rx) = channel();
         request(&self.cmds, &self.shared, Cmd::Save(tx)).then_some(())?;
@@ -1025,6 +1046,26 @@ impl Worker {
         link: &Link,
     ) {
         match cmd {
+            Cmd::Capture(resume, reply) => {
+                let state = if resume && !self.shared.resume_refused.load(Ordering::Acquire) {
+                    match core.serialize() {
+                        Ok(state) => Some(self.for_card(state)),
+                        Err(error) => {
+                            eprintln!("slot: autosave: {error}");
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+                let sav = if !self.shared.sav_refused.load(Ordering::Acquire) {
+                    core.save_ram()
+                } else {
+                    None
+                };
+                self.shared.capture_pending.store(false, Ordering::Release);
+                let _ = reply.send(SaveCapture { state, sav });
+            }
             Cmd::Save(reply) => match core.serialize() {
                 Ok(state) => {
                     let _ = reply.send(self.for_card(state));

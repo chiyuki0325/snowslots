@@ -15469,43 +15469,53 @@ impl App {
     }
 
     fn autosave(&mut self) {
-        self.autosave_at = self.now() + AUTOSAVE_MS;
-        self.state_writer.flush();
-        if let Some(h) = self.pending_save.take() {
-            let _ = h.join();
+        if self
+            .pending_save
+            .as_ref()
+            .is_some_and(|save| !save.is_finished())
+        {
+            return;
         }
+        if let Some(save) = self.pending_save.take() {
+            let _ = save.join();
+        }
+        self.autosave_at = self.now() + AUTOSAVE_MS;
         let resume = self.now() >= self.resume_at;
+        let (Some(root), Some(snapshot), Some(cart)) = (&self.root, &self.snapshot, self.seated())
+        else {
+            if resume {
+                self.resume_at = self.now() + RESUME_MS;
+            }
+            return;
+        };
+        let Some(capture) = snapshot.request_save(resume) else {
+            return;
+        };
+        let what = if resume { "autosave" } else { "in-game save" };
+        let (root, platform, core, cart) =
+            (root.clone(), self.platform, self.core, cart.to_owned());
         if resume {
             self.resume_at = self.now() + RESUME_MS;
         }
-        let (Some(root), Some(snapshot), Some(cart)) = (&self.root, &self.snapshot, self.seated())
-        else {
-            return;
-        };
-        let (state, sav, what) = if resume {
-            let Some(state) = snapshot.state() else {
-                eprintln!("slot: autosave: the core gave up no state");
-                return;
-            };
-            let (state, sav) = trusted_write(snapshot.as_ref(), state, "autosave");
-            (state, sav, "autosave")
-        } else {
-            match trusted_sav(snapshot.as_ref(), "autosave") {
-                Some(sav) => (None, Some(sav), "in-game save"),
-                None => return,
-            }
-        };
-        let (root, platform, core, cart) =
-            (root.clone(), self.platform, self.core, cart.to_owned());
         let failing = self.card_writes.clone();
         let write = move || {
+            let captured = match capture.recv_timeout(std::time::Duration::from_secs(2)) {
+                Ok(captured) => captured,
+                Err(error) => {
+                    eprintln!("slot: {what}: no snapshot: {error}");
+                    return;
+                }
+            };
+            if captured.state.is_none() && captured.sav.is_none() {
+                return;
+            }
             let written = persist::flush(
                 &root,
                 platform,
                 core,
                 &cart,
-                state.as_deref(),
-                sav.as_deref(),
+                captured.state.as_deref(),
+                captured.sav.as_deref(),
             );
             if let Err(e) = &written {
                 eprintln!("slot: {what}: {e}");

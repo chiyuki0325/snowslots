@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 use slot::app::App;
-use slot::persist::Snapshot;
+use slot::persist::{SaveCapture, Snapshot};
 use slot::session::Session;
 use slot_power::{Battery, Charge, LedState, Motor, Platform, Power, SimPlatform};
 use slot_retro::{ButtonMask, MockCore, RetroCore};
@@ -215,6 +215,10 @@ impl StubSnapshot {
 }
 
 impl Snapshot for StubSnapshot {
+    fn request_save(&self, resume: bool) -> Option<std::sync::mpsc::Receiver<SaveCapture>> {
+        Some(ready_save(self, resume))
+    }
+
     fn state(&self) -> Option<Vec<u8>> {
         Some(self.state.clone())
     }
@@ -260,6 +264,10 @@ impl CoreSnapshot {
 }
 
 impl Snapshot for CoreSnapshot {
+    fn request_save(&self, resume: bool) -> Option<std::sync::mpsc::Receiver<SaveCapture>> {
+        Some(ready_save(self, resume))
+    }
+
     fn state(&self) -> Option<Vec<u8>> {
         Some(self.bytes())
     }
@@ -279,6 +287,19 @@ impl Snapshot for CoreSnapshot {
     fn reset(&self) {
         self.with(|c| c.reset());
     }
+}
+
+pub fn ready_save(snapshot: &dyn Snapshot, resume: bool) -> std::sync::mpsc::Receiver<SaveCapture> {
+    let (reply, receive) = std::sync::mpsc::channel();
+    let state = (resume && snapshot.resume_trusted())
+        .then(|| snapshot.state())
+        .flatten();
+    let sav = snapshot
+        .save_ram_trusted()
+        .then(|| snapshot.save_ram())
+        .flatten();
+    reply.send(SaveCapture { state, sav }).unwrap();
+    receive
 }
 
 #[derive(Clone, Default)]
