@@ -3,6 +3,8 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+use pinyin::ToPinyin;
+
 use crate::gba::header_title_code;
 use crate::platform::Platform;
 
@@ -154,9 +156,7 @@ pub(crate) fn prepare_library(root: &Path, carts: &mut [Cart]) -> std::io::Resul
         cart.shell = shells.get(&crate::cart_shell::key(&cart.stem)).copied();
         cart.tags.clear();
     }
-    carts.sort_by(|a, b| {
-        (a.platform as u8, sort_key(&a.stem)).cmp(&(b.platform as u8, sort_key(&b.stem)))
-    });
+    carts.sort_by_cached_key(|cart| (cart.platform as u8, sort_key(&cart.stem)));
     tell_twins_apart(carts);
     system?;
     labels?;
@@ -211,8 +211,15 @@ fn is_file(entry: &std::fs::DirEntry, complete: &mut bool) -> bool {
     }
 }
 
-pub fn sort_key(stem: &str) -> (u8, String) {
-    (group_of(stem), stem.to_uppercase())
+pub fn sort_key(stem: &str) -> (u8, String, String) {
+    let mut folded = String::new();
+    for character in stem.trim_start().chars() {
+        match character.to_pinyin() {
+            Some(pinyin) => folded.push_str(&pinyin.plain().to_ascii_uppercase()),
+            None => folded.extend(character.to_uppercase()),
+        }
+    }
+    (group_of(stem), folded, stem.to_string())
 }
 
 fn group_of(stem: &str) -> u8 {
@@ -225,11 +232,13 @@ fn group_of(stem: &str) -> u8 {
 
 pub fn initial(stem: &str) -> char {
     match group_of(stem) {
-        1 => stem
-            .chars()
-            .find(|c| !c.is_whitespace())
-            .and_then(|c| c.to_uppercase().next())
-            .unwrap_or('#'),
+        1 => {
+            let character = stem.trim_start().chars().next().unwrap();
+            match character.to_pinyin() {
+                Some(pinyin) => pinyin.plain().chars().next().unwrap().to_ascii_uppercase(),
+                None => character.to_uppercase().next().unwrap_or('#'),
+            }
+        }
         _ => '#',
     }
 }

@@ -3,6 +3,61 @@ mod common;
 use slot_store::{find_file_by_stem, scan, Core, Platform, StateRing};
 
 #[test]
+fn chinese_and_latin_names_share_pinyin_order() {
+    let mut names = [
+        "Zelda",
+        "宝可梦",
+        "阿童木",
+        "Batman",
+        "1943",
+        "[BIOS]",
+        "马里奥",
+    ];
+    names.sort_by_cached_key(|name| slot_store::sort_key(name));
+    assert_eq!(
+        names,
+        [
+            "1943",
+            "阿童木",
+            "宝可梦",
+            "Batman",
+            "马里奥",
+            "Zelda",
+            "[BIOS]"
+        ]
+    );
+    assert_eq!(slot_store::initial(" 宝可梦"), 'B');
+    assert_eq!(slot_store::initial("马里奥"), 'M');
+    assert_eq!(slot_store::initial(""), '#');
+}
+
+#[test]
+fn homophones_have_a_stable_order_and_leading_spaces_are_ignored() {
+    assert_ne!(slot_store::sort_key("宝"), slot_store::sort_key("保"));
+    assert!(slot_store::sort_key("  阿童木") < slot_store::sort_key("宝可梦"));
+}
+
+#[test]
+fn cached_and_scanned_games_use_the_same_pinyin_order() {
+    let root = common::tmp_root();
+    for name in ["马里奥", "宝可梦", "阿童木", "Zelda"] {
+        std::fs::write(root.path().join(format!("Games/GBA/{name}.gba")), b"rom").unwrap();
+    }
+    let carts = scan(root.path()).unwrap();
+    assert_eq!(
+        carts
+            .iter()
+            .map(|cart| cart.stem.as_str())
+            .collect::<Vec<_>>(),
+        ["阿童木", "宝可梦", "马里奥", "Zelda"]
+    );
+    let mut reversed = carts.clone();
+    reversed.reverse();
+    slot_store::write_library_cache(root.path(), &reversed).unwrap();
+    assert_eq!(slot_store::load_library(root.path()).carts, carts);
+}
+
+#[test]
 fn utf8_names_are_displayed_without_changing_the_rom_path() {
     let root = common::tmp_root();
     let rom = root.path().join("Games/GBA/宝可梦.gba");

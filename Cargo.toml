@@ -16,6 +16,7 @@ image-webp = "0.2"
 qrcode = { version = "0.14", default-features = false }
 fontdue = "0.9"
 encoding_rs = "0.8"
+pinyin = { version = "0.11", default-features = false, features = ["plain"] }
 rustybuzz = "0.20"
 libloading = "0.8"
 libc = "0.2"

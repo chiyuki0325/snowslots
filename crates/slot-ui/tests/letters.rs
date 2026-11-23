@@ -145,3 +145,14 @@ fn a_row_of_one_letter_stays_put() {
     s.jump_prev_letter();
     assert_eq!(s.carts[s.index].stem, "Metroid");
 }
+
+#[test]
+fn letter_jumps_group_chinese_names_with_latin_initials() {
+    let mut shelf = shelf_of(&["阿童木", "apple", "宝可梦", "Batman", "马里奥", "Metroid"]);
+    shelf.jump_next_letter();
+    assert_eq!(shelf.carts[shelf.index].stem, "宝可梦");
+    shelf.jump_next_letter();
+    assert_eq!(shelf.carts[shelf.index].stem, "马里奥");
+    shelf.jump_prev_letter();
+    assert_eq!(shelf.carts[shelf.index].stem, "宝可梦");
+}

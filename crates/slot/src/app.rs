@@ -3200,10 +3200,7 @@ impl App {
             return;
         };
         let mut carts: Vec<Cart> = self.carts().cloned().collect();
-        carts.sort_by(|a, b| {
-            (slot_store::sort_key(&a.stem), a.platform as u8)
-                .cmp(&(slot_store::sort_key(&b.stem), b.platform as u8))
-        });
+        carts.sort_by_cached_key(|cart| (slot_store::sort_key(&cart.stem), cart.platform as u8));
         self.restock(at, carts);
     }
 
@@ -7840,10 +7837,7 @@ impl App {
             .filter(|c| self.state.is_favorite(c.platform, &c.stem))
             .cloned()
             .collect();
-        carts.sort_by(|a, b| {
-            (slot_store::sort_key(&a.stem), a.platform as u8)
-                .cmp(&(slot_store::sort_key(&b.stem), b.platform as u8))
-        });
+        carts.sort_by_cached_key(|cart| (slot_store::sort_key(&cart.stem), cart.platform as u8));
         let index = self.shelves[FAVORITES_AT].1.index;
         self.restock(FAVORITES_AT, carts);
         let shelf = &mut self.shelves[FAVORITES_AT].1;
