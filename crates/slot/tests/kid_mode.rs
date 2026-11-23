@@ -189,7 +189,7 @@ fn kid_shelf_steps_through_all_games_then_each_shelf() {
             "{key} missing: {choices:?}"
         );
     }
-    assert_eq!(a.kid_shelf_text(), "All Games");
+    assert_eq!(a.kid_shelf_text(), "全部游戏");
     open_at(&mut a, QuickRow::KidShelf);
     press(&mut a, Btn::Right);
     assert_eq!(saved(&d).kid_shelf, choices[1]);

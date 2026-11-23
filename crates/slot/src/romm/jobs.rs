@@ -20,8 +20,8 @@ const MAX_PENDING: u64 = 600;
 const MAX_TRIES: u8 = 3;
 const TRIES_SPENT: &str = "Download kept failing";
 const ROM_GONE: &str = "Game is gone from the server";
-const INSTALLS_OFF: &str = "Installs off on server";
-const NO_PERMISSIONS: &str = "Pairing lacks permissions";
+const INSTALLS_OFF: &str = "服务器未开启安装功能";
+const NO_PERMISSIONS: &str = "配对授权缺少所需权限";
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RommJob {

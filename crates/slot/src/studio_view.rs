@@ -158,38 +158,38 @@ fn preset_name(color: [u8; 3], finish: ShellFinish) -> Option<&'static str> {
 
 fn shell_name(shell: Option<ShellChoice>) -> String {
     match shell {
-        None => "Automatic".into(),
-        Some(s) => preset_name(s.colour, s.finish).unwrap_or("Custom").into(),
+        None => "自动".into(),
+        Some(s) => preset_name(s.colour, s.finish).unwrap_or("自定义").into(),
     }
 }
 
 fn ground_name(ground: Option<[u8; 3]>) -> String {
     match ground {
-        None => "Automatic".into(),
+        None => "自动".into(),
         Some(g) => shell_presets()
             .into_iter()
             .find(|(_, s)| s.colour == g)
-            .map_or("Custom", |(n, _)| n)
+            .map_or("自定义", |(n, _)| n)
             .into(),
     }
 }
 
 pub fn kind_name(kind: LabelKind) -> &'static str {
     match kind {
-        LabelKind::Existing => "Existing",
-        LabelKind::Real => "Real Label",
-        LabelKind::Logo => "Logo Only",
-        LabelKind::Hand => "Handwritten",
+        LabelKind::Existing => "现有标签",
+        LabelKind::Real => "原版标签",
+        LabelKind::Logo => "仅标志",
+        LabelKind::Hand => "手写",
     }
 }
 
 fn row_name(row: Row) -> &'static str {
     match row {
-        Row::Label => "Label Printer",
-        Row::LabelColor => "Label Color",
-        Row::Color => "Shell Color",
-        Row::Finish => "Finish",
-        Row::Shape => "Shape",
+        Row::Label => "标签打印",
+        Row::LabelColor => "标签颜色",
+        Row::Color => "外壳颜色",
+        Row::Finish => "材质",
+        Row::Shape => "形状",
     }
 }
 
@@ -197,14 +197,14 @@ fn row_choice(s: &Studio, row: Row) -> Option<(&'static str, usize)> {
     let shell = s.current_shell();
     match row {
         Row::Finish => Some(match shell.finish {
-            ShellFinish::Solid => ("Solid", 0),
-            ShellFinish::Clear => ("Clear", 1),
-            ShellFinish::Glitter => ("Glitter", 2),
+            ShellFinish::Solid => ("不透明", 0),
+            ShellFinish::Clear => ("透明", 1),
+            ShellFinish::Glitter => ("闪粉", 2),
         }),
         Row::Shape => Some(match shell.outline {
-            Outline::Auto => ("Automatic", 0),
-            Outline::Notched => ("Notched", 1),
-            Outline::Rounded => ("Rounded", 2),
+            Outline::Auto => ("自动", 0),
+            Outline::Notched => ("缺口", 1),
+            Outline::Rounded => ("圆角", 2),
         }),
         Row::Label | Row::LabelColor | Row::Color => None,
     }
@@ -265,8 +265,8 @@ fn list(s: &Studio, row: usize, left: f32, right: f32, out: &mut Vec<Item>) {
 
 fn chip_label(s: &Studio, chip: Chip, target: Target) -> String {
     match (chip, target) {
-        (Chip::Auto, _) => "Automatic".into(),
-        (Chip::Custom, _) => "Custom".into(),
+        (Chip::Auto, _) => "自动".into(),
+        (Chip::Custom, _) => "自定义".into(),
         (Chip::Current, Target::Shell) => shell_name(s.cart.shell),
         (Chip::Current, Target::Label) => ground_name(s.opened_ground),
         (Chip::Preset(i), _) => shell_presets()[i].0.into(),
@@ -290,8 +290,8 @@ fn chips(
     let top = 16.0;
     let x0 = right - GRID_W;
     let heading = match target {
-        Target::Shell => "Shell Color",
-        Target::Label => "Label Color",
+        Target::Shell => "外壳颜色",
+        Target::Label => "标签颜色",
     };
     out.push(text(
         heading,
@@ -325,7 +325,7 @@ fn chips(
         });
         if p.chip == Chip::Auto {
             out.push(Item::Text {
-                text: "AUTO".into(),
+                text: "自动".into(),
                 style: Style::Detail,
                 align: Align::Center,
                 x: p.x + CHIP_SIZE / 2.0,
@@ -395,8 +395,8 @@ fn custom(
     let total = HEAD_H + 12.0 + 3.0 * ROW + 40.0;
     let top = ((FOOTER_TOP - total) / 2.0).floor();
     let heading = match target {
-        Target::Shell => "Custom Shell",
-        Target::Label => "Custom Label",
+        Target::Shell => "自定义外壳",
+        Target::Label => "自定义标签",
     };
     out.push(text(heading, Style::Heading, Align::Center, mid, top, 1.0));
     for c in 0..3 {
@@ -450,8 +450,8 @@ fn hex(target: Target, digits: [u8; 6], pos: usize, left: f32, right: f32, out: 
     let top = ((FOOTER_TOP - total) / 2.0).floor();
     let x0 = right - (5.0 * step + box_w);
     let heading = match target {
-        Target::Shell => "Shell Hex",
-        Target::Label => "Label Hex",
+        Target::Shell => "外壳色值",
+        Target::Label => "标签色值",
     };
     let y = top + HEAD_H + 16.0;
     out.push(text(
@@ -512,10 +512,10 @@ pub fn view(s: &Studio, canvas_w: f32) -> View {
         ),
         Screen::Sheet { .. } if s.sheet.iter().all(|k| *k == LabelKind::Hand) => {
             let line = match (s.art_failed || !s.wifi(), s.duplicates) {
-                (true, _) => "No Connection",
-                (false, true) => "No New Labels",
-                (false, false) if !s.wearing_hand() => "No Other Labels",
-                (false, false) => "No Art Found",
+                (true, _) => "未连接网络",
+                (false, true) => "没有新标签",
+                (false, false) if !s.wearing_hand() => "没有其他标签",
+                (false, false) => "未找到封面",
             };
             let t = tray(canvas_w, &s.cart);
             let mid = t.printer_x + t.printer_w / 2.0;

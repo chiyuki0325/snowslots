@@ -393,9 +393,9 @@ fn choice_carts_fit_a_640_screen() {
 #[test]
 fn connecting_until_the_worker_counts() {
     let (_d, mut a, art) = running();
-    assert_eq!(a.fetch_art_lines(), vec!["Connecting to Wi-Fi".to_string()]);
+    assert_eq!(a.fetch_art_lines(), vec!["正在连接Wi-Fi".to_string()]);
     art.send(&mut a, ArtEvent::Counted(2));
-    assert_eq!(a.fetch_art_lines(), vec!["Fetching Art".to_string()]);
+    assert_eq!(a.fetch_art_lines(), vec!["正在获取封面".to_string()]);
 }
 
 #[test]
@@ -413,7 +413,7 @@ fn summary_reads_as_rows() {
     advance(&mut a, 100.0);
     assert_eq!(
         a.fetch_art_lines(),
-        ["All Done", "Added", "0", "No Art Found", "1"]
+        ["全部完成", "已添加", "0", "未找到封面", "1"]
             .map(String::from)
             .to_vec()
     );
@@ -432,7 +432,7 @@ fn a_stopped_run_says_so() {
         },
     );
     advance(&mut a, 100.0);
-    assert_eq!(a.fetch_art_lines()[0], "Stopped");
+    assert_eq!(a.fetch_art_lines()[0], "已停止");
 }
 
 #[test]
@@ -440,7 +440,7 @@ fn a_lost_connection_says_so() {
     let (_d, mut a, art) = running();
     art.send(&mut a, ArtEvent::Failed(UpdateFail::Offline));
     advance(&mut a, 100.0);
-    assert_eq!(a.fetch_art_lines()[0], "Wi-Fi Lost");
+    assert_eq!(a.fetch_art_lines()[0], "Wi-Fi已断开");
 }
 
 #[test]
@@ -494,7 +494,7 @@ fn a_scene_reads_applying_labels() {
     art.send(&mut a, landed("Emerald"));
     assert_eq!(
         a.fetch_art_lines(),
-        ["Applying Labels", "Emerald", "1 of 2"]
+        ["正在应用标签", "Emerald", "1/2"]
             .map(String::from)
             .to_vec()
     );
@@ -511,11 +511,11 @@ fn x_skips_the_animations() {
     assert!(a.fetch_landed().iter().any(|l| l.stem == "Emerald"));
     assert_eq!(
         a.fetch_art_lines(),
-        ["Applying Labels", "1 of 2"].map(String::from).to_vec()
+        ["正在应用标签", "1/2"].map(String::from).to_vec()
     );
     art.send(&mut a, landed("Fusion"));
     assert_eq!(scene_stem(&a), None);
-    assert_eq!(a.fetch_art_lines()[1], "2 of 2");
+    assert_eq!(a.fetch_art_lines()[1], "2/2");
     assert!(a.fetch_wanted().is_empty());
     art.send(
         &mut a,
@@ -558,7 +558,7 @@ fn skipping_shows_a_progress_bar_and_no_carts() {
     a.tick_ms(a.now() + 1);
     assert_eq!(
         a.fetch_art_lines(),
-        vec!["Applying Labels".to_string(), "2 of 4".to_string()]
+        vec!["正在应用标签".to_string(), "2/4".to_string()]
     );
     assert!(
         a.fetch_wanted().is_empty(),
@@ -598,7 +598,7 @@ fn the_summary_waits_for_its_cart_then_gives_up() {
     assert_eq!(a.fetch_wanted()[0].stem, "Emerald");
     assert_eq!(
         a.fetch_art_lines(),
-        vec!["Applying Labels".to_string(), "1 of 1".to_string()]
+        vec!["正在应用标签".to_string(), "1/1".to_string()]
     );
     a.tick_ms(a.now() + 500);
     assert!(matches!(a.fetch_art(), Some(FetchArt::Running(_))));
@@ -618,14 +618,14 @@ fn already_connected_skips_the_connecting_line() {
     a.set_wifi(slot::wifi::Wifi::inline(Box::new(slot::wifi::Fake::demo())));
     a.wifi_send(slot::wifi::Cmd::Hold);
     a.tick_ms(a.now() + 1);
-    assert_eq!(a.fetch_art_lines(), vec!["Connecting to Wi-Fi".to_string()]);
+    assert_eq!(a.fetch_art_lines(), vec!["正在连接Wi-Fi".to_string()]);
     a.wifi_send(slot::wifi::Cmd::Join {
         ssid: "Home".into(),
         password: "password".into(),
         hidden: false,
     });
     a.tick_ms(a.now() + 1);
-    assert_eq!(a.fetch_art_lines(), vec!["Fetching Art".to_string()]);
+    assert_eq!(a.fetch_art_lines(), vec!["正在获取封面".to_string()]);
 }
 
 #[cfg(feature = "nds")]
@@ -679,7 +679,7 @@ fn fetch_box_art_counts_up_and_ends_on_a_summary() {
     let lines = a.fetch_art_lines();
     assert_eq!(
         lines,
-        vec!["Fetching Box Art".to_string(), "1 of 2".to_string()]
+        vec!["正在获取盒装封面".to_string(), "1/2".to_string()]
     );
     art.send(
         &mut a,

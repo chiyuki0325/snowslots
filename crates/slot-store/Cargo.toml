@@ -9,6 +9,7 @@ license.workspace = true
 nds = []
 
 [dependencies]
+encoding_rs.workspace = true
 unicode-normalization.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]

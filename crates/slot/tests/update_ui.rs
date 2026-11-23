@@ -154,15 +154,9 @@ fn y_checks_and_a_newer_release_offers_install() {
     assert!(a.update_offered());
     press(&mut a, Btn::A);
     assert_eq!(jobs.asked(), [UpdateJob::Check]);
-    assert_eq!(
-        text(&a),
-        Some(("Checking for updates".into(), String::new()))
-    );
+    assert_eq!(text(&a), Some(("正在检查更新".into(), String::new())));
     jobs.send(&mut a, UpdateEvent::Available(vec![release()]));
-    assert_eq!(
-        text(&a),
-        Some(("An update is available".into(), String::new()))
-    );
+    assert_eq!(text(&a), Some(("有可用更新".into(), String::new())));
     press(&mut a, Btn::A);
     assert_eq!(
         jobs.asked(),
@@ -234,10 +228,7 @@ fn up_to_date_says_so_and_b_returns_to_about() {
     let running = Build::current().version;
     assert_eq!(
         text(&a),
-        Some((
-            "slot is up to date".into(),
-            format!("{running} is the latest version.")
-        ))
+        Some(("slot已是最新版本".into(), format!("{running}是最新版本。")))
     );
     press(&mut a, Btn::B);
     assert!(on_updates_row(&a));
@@ -261,10 +252,7 @@ fn a_clock_failure_says_to_set_the_clock() {
     jobs.send(&mut a, UpdateEvent::Failed(UpdateFail::Clock));
     assert_eq!(
         text(&a),
-        Some((
-            "Could not check for updates".into(),
-            "Set the date and time, then try again.".into()
-        ))
+        Some(("无法检查更新".into(), "请设置日期与时间后重试。".into()))
     );
 }
 
@@ -273,33 +261,33 @@ fn every_failure_has_its_own_words() {
     let want = [
         (
             UpdateFail::NoWifi,
-            "Could not join Wi-Fi",
-            "Check Wi-Fi in the System menu.",
+            "无法连接Wi-Fi",
+            "请在系统菜单中检查Wi-Fi设置。",
         ),
         (
             UpdateFail::Offline,
-            "Could not connect",
-            "Check the network has internet access.",
+            "无法连接",
+            "请检查网络能否访问互联网。",
         ),
         (
             UpdateFail::Download,
-            "Download failed",
-            "Nothing was changed. Try again later.",
+            "下载失败",
+            "未做任何更改，请稍后重试。",
         ),
         (
             UpdateFail::Checksum,
-            "The download was damaged",
-            "Nothing was changed. Try again later.",
+            "下载文件已损坏",
+            "未做任何更改，请稍后重试。",
         ),
         (
             UpdateFail::Bad,
-            "The update could not be read",
-            "Nothing was changed. Try again later.",
+            "无法读取更新包",
+            "未做任何更改，请稍后重试。",
         ),
         (
             UpdateFail::Space,
-            "Not enough space on the card",
-            "Free some space, then try again.",
+            "存储卡空间不足",
+            "请清理一些空间后重试。",
         ),
     ];
     for (fail, title, detail) in want {
@@ -327,10 +315,7 @@ fn a_check_that_cannot_reach_the_server_says_to_try_again_later() {
         jobs.send(&mut a, UpdateEvent::Failed(fail.clone()));
         assert_eq!(
             text(&a),
-            Some((
-                "Could not fetch update info".into(),
-                "Try again later.".into()
-            )),
+            Some(("无法获取更新信息".into(), "请稍后重试。".into())),
             "{fail:?}"
         );
         press(&mut a, Btn::B);
@@ -342,8 +327,8 @@ fn a_check_that_cannot_reach_the_server_says_to_try_again_later() {
     assert_eq!(
         text(&a),
         Some((
-            "Could not join Wi-Fi".into(),
-            "Check Wi-Fi in the System menu.".into()
+            "无法连接Wi-Fi".into(),
+            "请在系统菜单中检查Wi-Fi设置。".into()
         ))
     );
 }
@@ -575,7 +560,7 @@ fn a_low_battery_warns_before_a_baseos_install() {
     press(&mut a, Btn::Right);
     press(&mut a, Btn::A);
     assert_eq!(jobs.asked(), [UpdateJob::Check]);
-    assert_eq!(text(&a).unwrap().0, "Battery is low");
+    assert_eq!(text(&a).unwrap().0, "电量不足");
     press(&mut a, Btn::A);
     assert_eq!(
         jobs.asked(),
@@ -630,7 +615,7 @@ fn a_second_check_offers_both_again_from_slot() {
         UpdateEvent::Available(vec![big_release(), baseos()]),
     );
     assert_eq!(a.update_chosen(), Some(Kind::Slot));
-    assert_eq!(a.update_text().unwrap().0, "Updates are available");
+    assert_eq!(a.update_text().unwrap().0, "有多项可用更新");
 }
 
 #[test]
@@ -655,7 +640,7 @@ fn a_refused_baseos_update_shows_its_reason() {
     assert_eq!(
         text(&a),
         Some((
-            "BaseOS refused the update".to_string(),
+            "BaseOS拒绝了更新".to_string(),
             "geometry does not fit".to_string()
         ))
     );
@@ -672,7 +657,7 @@ fn b_while_downloading_cancels_and_goes_back_to_the_carts() {
     assert_eq!(jobs.cancels(), 1);
     assert!(a.update_shown());
     advance(&mut a, CLOSE_MS + 100);
-    assert_eq!(text(&a).unwrap().0, "Updates are available");
+    assert_eq!(text(&a).unwrap().0, "有多项可用更新");
     assert_eq!(a.update_chosen(), Some(Kind::BaseOs));
     assert_eq!(
         jobs.asked(),
@@ -688,7 +673,7 @@ fn a_cancelled_download_never_shows_a_failure() {
     press(&mut a, Btn::B);
     jobs.send(&mut a, UpdateEvent::Cancelled);
     advance(&mut a, CLOSE_MS + 100);
-    assert_eq!(text(&a).unwrap().0, "Updates are available");
+    assert_eq!(text(&a).unwrap().0, "有多项可用更新");
     assert_eq!(a.update_chosen(), Some(Kind::Slot));
 }
 
@@ -725,7 +710,7 @@ fn a_wifi_drop_mid_check_keeps_the_check_state() {
     press(&mut a, Btn::A);
     assert_eq!(
         a.update_text(),
-        Some(("Checking for updates".into(), String::new()))
+        Some(("正在检查更新".into(), String::new()))
     );
     a.wifi_send(slot::wifi::Cmd::Disconnect);
     for _ in 0..3 {
@@ -735,6 +720,6 @@ fn a_wifi_drop_mid_check_keeps_the_check_state() {
     assert_eq!(a.quick_menu(), Some(QuickRow::CheckUpdates));
     assert_eq!(
         a.update_text(),
-        Some(("Checking for updates".into(), String::new()))
+        Some(("正在检查更新".into(), String::new()))
     );
 }

@@ -503,6 +503,12 @@ fn clean_stem(stem: &str) -> &str {
         .trim_end_matches(|c: char| c == '.' || c.is_whitespace())
 }
 
+pub fn cached_names_need_sweep(carts: &[Cart]) -> bool {
+    carts
+        .iter()
+        .any(|cart| !clean_stem(&cart.stem).is_empty() && clean_stem(&cart.stem) != cart.stem)
+}
+
 fn needs_sweep(root: &Path, platform: Platform) -> bool {
     let Ok(dir) = at(root, &["Games", platform.dir_name()]) else {
         return false;
@@ -539,7 +545,10 @@ pub fn sweep_names(root: &Path) {
             let name = format!("{clean}.{ext}");
             let old = file_name(&cart.rom);
             match rename(root, &index, &cart, &name) {
-                Ok(()) => eprintln!("slot: renamed {old:?} to {name:?}"),
+                Ok(()) => {
+                    let _ = slot_store::remove_library_cache(root);
+                    eprintln!("slot: renamed {old:?} to {name:?}");
+                }
                 Err(r) => eprintln!("slot: left {old:?}: {}", r.message),
             }
         }

@@ -18,10 +18,10 @@ use crate::quick_menu::{button_face, button_pair, quick_text_face, up_down_pair}
 
 const MONO_TTF: &[u8] = include_bytes!("../assets/DejaVuSansMono.ttf");
 
-pub const GUIDE_HELP_TITLE: &str = "Guide Help";
+pub const GUIDE_HELP_TITLE: &str = "攻略帮助";
 
-pub const GUIDE_HINTS: [(&str, &str); 2] = [("Y", "Close"), ("MENU", "Help")];
-pub const GUIDE_HELP_HINT: (&str, &str) = ("B", "Back");
+pub const GUIDE_HINTS: [(&str, &str); 2] = [("Y", "关闭"), ("MENU", "帮助")];
+pub const GUIDE_HELP_HINT: (&str, &str) = ("B", "返回");
 
 pub const GUIDE_ZOOMS: [f32; 8] = [10.0, 12.0, 14.0, 16.0, 18.0, 21.0, 24.0, 28.0];
 pub const GUIDE_COLUMNS: usize = 80;
@@ -500,11 +500,11 @@ pub(crate) fn draw_help_screen(
 
 pub fn guide_help_face() -> UndoFace {
     help_rows_face(vec![
-        (up_down_pair(), "Scroll"),
-        (button_pair(ButtonLegend::L1, ButtonLegend::R1), "Page"),
-        (button_pair(ButtonLegend::Left, ButtonLegend::Right), "Pan"),
-        (button_pair(ButtonLegend::A, ButtonLegend::B), "Zoom"),
-        (button_face(ButtonLegend::X), "Wrap"),
+        (up_down_pair(), "滚动"),
+        (button_pair(ButtonLegend::L1, ButtonLegend::R1), "翻页"),
+        (button_pair(ButtonLegend::Left, ButtonLegend::Right), "平移"),
+        (button_pair(ButtonLegend::A, ButtonLegend::B), "缩放"),
+        (button_face(ButtonLegend::X), "自动换行"),
     ])
 }
 

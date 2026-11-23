@@ -37,12 +37,12 @@ fn on_favorites(d: &tempfile::TempDir) -> App {
     .unwrap();
     let mut a = App::boot(d.path());
     for _ in 0..12 {
-        if a.shelf_platform_name() == Some("Favorites") {
+        if a.shelf_platform_name() == Some("收藏") {
             break;
         }
         common::through(&mut a, Btn::R1);
     }
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
     assert_eq!(a.shelf_stems(), ["Tetris", "Tetris"]);
     a
 }

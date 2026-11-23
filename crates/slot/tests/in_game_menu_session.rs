@@ -241,7 +241,7 @@ fn select_and_start_bound_to_reset_offers_undo_reset_in_the_menu() {
     for _ in 0..30 {
         step(&mut s, &mut now, &[]);
     }
-    assert_eq!(s.app().undo_label(), Some("undo reset"));
+    assert_eq!(s.app().undo_label(), Some("撤销重置"));
     open_menu(&mut s, &mut now);
     assert!(!s.app().in_game_hidden().contains(&QuickRow::UndoReset));
 }

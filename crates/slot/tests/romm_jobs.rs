@@ -12,7 +12,7 @@ use slot::romm::{Push, RommConf, RommEvent, RommJob, RommJobs};
 use slot_store::{Cart, Platform};
 use tempfile::{tempdir, TempDir};
 
-const NOTE: &str = "Installs off on server";
+const NOTE: &str = "服务器未开启安装功能";
 
 struct State {
     claims: VecDeque<Result<Vec<Install>, ApiError>>,
@@ -945,7 +945,7 @@ fn claim_403_notes_once_and_clears() {
     let mut r = runner(d.path(), &api);
     assert_eq!(
         poll(&mut r),
-        vec![RommEvent::Note("Pairing lacks permissions".into())]
+        vec![RommEvent::Note("配对授权缺少所需权限".into())]
     );
     assert!(poll(&mut r).is_empty());
     assert_eq!(poll(&mut r), vec![RommEvent::NoteCleared]);

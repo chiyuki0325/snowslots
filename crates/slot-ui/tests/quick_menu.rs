@@ -82,31 +82,31 @@ fn the_fast_forward_row_offers_off_a_slow_speed_and_the_four_ceilings() {
 fn the_rows_run_in_the_order_the_user_chose() {
     assert_eq!(
         QuickRow::MAIN.map(QuickRow::label),
-        ["Shelf", "Gameplay", "Controls", "Screen", "Tools", "System"]
+        ["游戏架", "游戏", "按键", "屏幕", "工具", "系统"]
     );
     assert_eq!(
         QuickRow::GENERAL.map(QuickRow::label),
         [
-            "Theme",
-            "Wallpaper",
-            "Wallpaper Tint",
-            "Shelf Mode",
-            "Recents",
-            "Game Titles",
-            "Kid Mode",
-            "Kid Shelf"
+            "主题",
+            "壁纸",
+            "壁纸着色",
+            "游戏架模式",
+            "最近游戏",
+            "游戏标题",
+            "儿童模式",
+            "儿童游戏架"
         ]
     );
     assert_eq!(
         QuickRow::SYSTEM.map(QuickRow::label),
         [
             "Wi-Fi",
-            "Date & Time",
-            "Nickname",
-            "Lid Power Off",
-            "Battery Display",
-            "Check for Updates",
-            "About"
+            "日期与时间",
+            "昵称",
+            "合盖后关机",
+            "电量显示",
+            "检查更新",
+            "关于"
         ]
     );
     assert_eq!(
@@ -115,66 +115,59 @@ fn the_rows_run_in_the_order_the_user_chose() {
     );
     assert_eq!(
         QuickRow::CONTROL_PAGES.map(QuickRow::label),
-        ["Shelf", "Collections", "Shortcuts", "In-Game"]
+        ["游戏架", "合集", "快捷键", "游戏内"]
     );
     assert_eq!(
         QuickRow::SHELF_KEYS.map(QuickRow::label),
-        ["Previous Shelf", "Next Shelf", "Favorite", "Remove Recent"]
+        ["上一游戏架", "下一游戏架", "收藏", "移出最近游戏"]
     );
     assert_eq!(
         QuickRow::SCREEN.map(QuickRow::label),
-        ["General", "Game Boy Advance", "Game Boy Color", "Game Boy"]
+        ["通用", "Game Boy Advance", "Game Boy Color", "Game Boy"]
     );
     assert_eq!(
         QuickRow::SCREEN_GENERAL.map(QuickRow::label),
-        ["Brightness", "Blue Light", "Saturation", "Contrast"]
+        ["亮度", "蓝光", "饱和度", "对比度"]
     );
     assert_eq!(
         QuickRow::SCREEN_GBA.map(QuickRow::label),
-        [
-            "Shader",
-            "Overlay",
-            "Color Correction",
-            "Frame Blending",
-            "Bezel",
-            "Scale"
-        ]
+        ["滤镜", "叠加层", "色彩校正", "帧混合", "边框", "缩放"]
     );
     assert_eq!(
         QuickRow::SCREEN_GBC.map(QuickRow::label),
         [
-            "Shader",
-            "Overlay",
-            "Color Correction",
-            "Frame Blending",
-            "Bezel",
-            "Scale",
-            "Stretch"
+            "滤镜",
+            "叠加层",
+            "色彩校正",
+            "帧混合",
+            "边框",
+            "缩放",
+            "拉伸"
         ]
     );
     assert_eq!(
         QuickRow::SCREEN_GB.map(QuickRow::label),
         [
-            "Shader",
-            "Overlay",
-            "Color Correction",
-            "Frame Blending",
-            "Palette",
-            "Bezel",
-            "Scale",
-            "Stretch"
+            "滤镜",
+            "叠加层",
+            "色彩校正",
+            "帧混合",
+            "调色板",
+            "边框",
+            "缩放",
+            "拉伸"
         ]
     );
     assert_eq!(
         QuickRow::GAME.map(QuickRow::label),
         [
-            "Fast Forward",
-            "Fast Forward Sound",
-            "Rewind",
-            "Rumble",
-            "Left Stick as D-Pad",
-            "Resume on Insert",
-            "Resume on Power On"
+            "快速前进",
+            "快进声音",
+            "倒带",
+            "震动",
+            "左摇杆模拟方向键",
+            "插卡时继续游戏",
+            "开机时继续游戏"
         ]
     );
     let opens: Vec<QuickRow> = QuickRow::ALL.into_iter().filter(|r| r.opens()).collect();
@@ -272,26 +265,26 @@ fn the_values_read_as_the_menu_prints_them() {
             "3×",
             "4×",
             "6×",
-            "On",
-            "Off",
+            "开",
+            "关",
             "LCD",
-            "Grid",
-            "Dot",
+            "网格",
+            "点阵",
             "Simpletex",
             "Shimmerless",
-            "Dark",
-            "Light",
-            "Show",
-            "Hide",
+            "深色",
+            "浅色",
+            "显示",
+            "隐藏",
             "25%",
             "45%",
             "65%",
-            "1 min",
-            "3 min",
-            "5 min",
-            "10 min",
-            "15 min",
-            "30 min",
+            "1分钟",
+            "3分钟",
+            "5分钟",
+            "10分钟",
+            "15分钟",
+            "30分钟",
             "0",
             "1",
             "2",
@@ -308,22 +301,22 @@ fn the_values_read_as_the_menu_prints_them() {
             "13",
             "14",
             "15",
-            "SP Screen",
-            "Integer",
-            "Fit",
-            "Classic",
-            "Full Screen",
-            "Mix",
-            "Ghosting",
+            "SP屏幕",
+            "整数倍",
+            "适应屏幕",
+            "经典",
+            "全屏",
+            "混合",
+            "残影",
             "HTTPS",
             "HTTP",
-            "All",
-            "Collections",
-            "One Shelf",
-            "Shelves",
-            "Both",
-            "Icon",
-            "Percentage",
+            "全部",
+            "合集",
+            "单个游戏架",
+            "游戏架",
+            "图标与百分比",
+            "图标",
+            "百分比",
         ]
     );
     assert_eq!(QuickValue::flag(true), QuickValue::On);
@@ -333,9 +326,9 @@ fn the_values_read_as_the_menu_prints_them() {
 #[test]
 fn the_date_and_time_read_as_a_month_a_day_and_the_carousels_clock() {
     let at = |stamp: &str, h24| date_time_text(parse_stamp(stamp).expect("a stamp"), h24);
-    assert_eq!(at("2026-09-15_16-35-00", true), "SEP 15 16:35");
-    assert_eq!(at("2027-01-05_04-07-59", true), "JAN 5 04:07");
-    assert_eq!(at("2026-09-15_16-35-00", false), "SEP 15 4:35 PM");
+    assert_eq!(at("2026-09-15_16-35-00", true), "9月15日 16:35");
+    assert_eq!(at("2027-01-05_04-07-59", true), "1月5日 04:07");
+    assert_eq!(at("2026-09-15_16-35-00", false), "9月15日 4:35 PM");
 }
 
 #[test]
@@ -349,7 +342,7 @@ fn a_picker_for_a_set_clock_starts_at_the_local_time_in_its_city() {
         utc - 42,
         "the picker does not show the minute it was opened in"
     );
-    assert_eq!(p.value_text(ClockRow::Date), "SEP 15 2026");
+    assert_eq!(p.value_text(ClockRow::Date), "2026年9月15日");
     assert_eq!(p.value_text(ClockRow::Time), "17:35");
 }
 
@@ -415,13 +408,12 @@ fn the_in_game_pages_hold_their_rows_in_order() {
     );
     assert_eq!(
         QuickRow::SETTINGS.map(QuickRow::label),
-        ["Screen", "Gameplay", "Controls"]
+        ["屏幕", "游戏", "按键"]
     );
     assert_eq!(
         QuickRow::CONTROLS.map(QuickRow::label),
         [
-            "Up", "Down", "Left", "Right", "A Button", "B Button", "Select", "Start", "L Button",
-            "R Button", "Turbo A", "Turbo B"
+            "上", "下", "左", "右", "A键", "B键", "Select", "Start", "L键", "R键", "A连发", "B连发"
         ]
     );
     assert_eq!(
@@ -473,17 +465,17 @@ fn in_game_pages_climb_back_through_settings() {
 #[test]
 fn in_game_rows_read_as_the_menu_shows_them() {
     let labels = [
-        (QuickRow::Resume, "Resume"),
-        (QuickRow::States, "States"),
-        (QuickRow::Settings, "Settings"),
-        (QuickRow::ExitGame, "Exit Game"),
-        (QuickRow::PlayScreen, "Screen"),
-        (QuickRow::PlayGameplay, "Gameplay"),
-        (QuickRow::Shader, "Shader"),
-        (QuickRow::ColourCorrection, "Color Correction"),
-        (QuickRow::Palette, "Palette"),
-        (QuickRow::PlayBrightness, "Brightness"),
-        (QuickRow::PlayBlueLight, "Blue Light"),
+        (QuickRow::Resume, "继续游戏"),
+        (QuickRow::States, "即时存档"),
+        (QuickRow::Settings, "设置"),
+        (QuickRow::ExitGame, "退出游戏"),
+        (QuickRow::PlayScreen, "屏幕"),
+        (QuickRow::PlayGameplay, "游戏"),
+        (QuickRow::Shader, "滤镜"),
+        (QuickRow::ColourCorrection, "色彩校正"),
+        (QuickRow::Palette, "调色板"),
+        (QuickRow::PlayBrightness, "亮度"),
+        (QuickRow::PlayBlueLight, "蓝光"),
     ];
     for (row, label) in labels {
         assert_eq!(row.label(), label);
@@ -687,12 +679,12 @@ fn the_battery_display_sits_above_check_for_updates_on_the_system_page() {
         at(QuickRow::CheckUpdates),
         at(QuickRow::BatteryDisplay).map(|i| i + 1)
     );
-    assert_eq!(QuickRow::BatteryDisplay.label(), "Battery Display");
+    assert_eq!(QuickRow::BatteryDisplay.label(), "电量显示");
     assert_eq!(QuickRow::BatteryDisplay.parent(), Some(QuickRow::System));
     assert!(!QuickRow::BatteryDisplay.opens());
     assert_eq!(
         [QuickValue::Both, QuickValue::Icon, QuickValue::Percentage].map(QuickValue::text),
-        ["Both", "Icon", "Percentage"]
+        ["图标与百分比", "图标", "百分比"]
     );
 }
 
@@ -718,7 +710,7 @@ fn system_holds_wifi_the_clock_lid_power_off_updates_and_about() {
     assert!(!QuickRow::BatteryDisplay.opens());
     assert_eq!(
         [QuickValue::Both, QuickValue::Icon, QuickValue::Percentage].map(QuickValue::text),
-        ["Both", "Icon", "Percentage"]
+        ["图标与百分比", "图标", "百分比"]
     );
 }
 
@@ -726,11 +718,11 @@ fn system_holds_wifi_the_clock_lid_power_off_updates_and_about() {
 fn fetch_legends_are_built_like_the_other_prompts() {
     let ink = [240, 240, 232];
     let [cancel, pick] = slot_ui::fetch_choice_legends(ink);
-    let [want_cancel, _] = slot_ui::prompt_legends(ink, "Cancel", "Start");
+    let [want_cancel, _] = slot_ui::prompt_legends(ink, "取消", "开始");
     assert_eq!((cancel.w, cancel.h), (want_cancel.w, want_cancel.h));
     assert_eq!(cancel.rgba, want_cancel.rgba);
     assert_eq!(pick.h, cancel.h);
-    let [want_stop, _] = slot_ui::prompt_legends(ink, "Stop", "Start");
+    let [want_stop, _] = slot_ui::prompt_legends(ink, "停止", "开始");
     assert_eq!(slot_ui::fetch_legends(ink).rgba, want_stop.rgba);
 }
 
@@ -738,7 +730,7 @@ fn fetch_legends_are_built_like_the_other_prompts() {
 fn fetch_art_sits_below_romm_on_the_tools_page() {
     assert!(!slot_ui::QuickRow::NETWORK.contains(&slot_ui::QuickRow::CheckUpdates));
     assert_eq!(slot_ui::QuickRow::NETWORK[2], slot_ui::QuickRow::FetchArt);
-    assert_eq!(slot_ui::QuickRow::FetchArt.label(), "Fetch Missing Art");
+    assert_eq!(slot_ui::QuickRow::FetchArt.label(), "下载缺失封面");
     assert!(slot_ui::QuickRow::FetchArt.opens());
 }
 
@@ -753,7 +745,7 @@ fn the_tools_page_is_centred_like_the_screen_page() {
 #[test]
 fn skip_keeps_its_button_on_the_outer_edge() {
     let ink = [240, 240, 232];
-    let [_, want] = slot_ui::prompt_legends(ink, "No", "Skip");
+    let [_, want] = slot_ui::prompt_legends(ink, "否", "跳过");
     assert_eq!(slot_ui::fetch_skip_legend(ink).w, want.w);
 }
 
@@ -813,7 +805,7 @@ fn collections_sits_after_shelf_in_controls() {
             QuickRow::ControlsInGame,
         ]
     );
-    assert_eq!(QuickRow::ControlsCollections.label(), "Collections");
+    assert_eq!(QuickRow::ControlsCollections.label(), "合集");
     assert_eq!(
         QuickRow::ControlsCollections.child(),
         Some(QuickRow::CollPrev)
@@ -830,7 +822,7 @@ fn the_collections_page_lists_previous_and_next() {
         .iter()
         .map(|r| r.label())
         .collect();
-    assert_eq!(labels, ["Previous", "Next"]);
+    assert_eq!(labels, ["上一合集", "下一合集"]);
     assert_eq!(QuickRow::CollNext.page(), &QuickRow::COLLECTION_KEYS[..]);
 }
 
@@ -847,9 +839,9 @@ fn a_taller_canvas_shows_more_rows_at_the_same_height() {
 }
 
 fn tools_labels() -> Vec<&'static str> {
-    let mut labels = vec!["Gamebit", "RomM", "Fetch Missing Art"];
+    let mut labels = vec!["Gamebit", "RomM", "下载缺失封面"];
     if cfg!(feature = "nds") {
-        labels.push("Fetch Box Art");
+        labels.push("下载包装封面");
     }
     labels
 }

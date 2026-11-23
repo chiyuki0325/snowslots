@@ -6,47 +6,48 @@ use slot_ui::{
 
 #[test]
 fn saving_and_loading_say_which_one_happened() {
-    assert_eq!(Toast::StateSaved.text(), "State Saved");
-    assert_eq!(Toast::StateLoaded.text(), "State Loaded");
+    assert_eq!(Toast::StateSaved.text(), "已保存状态");
+    assert_eq!(Toast::StateLoaded.text(), "已读取状态");
 }
 
 #[test]
 fn the_link_shortcut_on_the_wrong_core_says_to_switch() {
-    assert_eq!(Toast::NeedsGpsp.text(), "Please switch to gpSP");
+    assert_eq!(Toast::NeedsGpsp.text(), "请切换至gpSP");
     let f = toast_face(Toast::NeedsGpsp);
     assert!(f.rgba.chunks(4).any(|p| p[3] > 0), "the banner is blank");
 }
 
 #[test]
 fn sunlight_on_gpsp_says_to_switch_to_mgba() {
-    assert_eq!(Toast::NeedsMgba.text(), "Please switch to mGBA");
+    assert_eq!(Toast::NeedsMgba.text(), "请切换至mGBA");
     let f = toast_face(Toast::NeedsMgba);
     assert!(f.rgba.chunks(4).any(|p| p[3] > 0), "the banner is blank");
 }
 
 #[test]
 fn a_cart_gpsp_cannot_link_says_there_is_no_link() {
-    assert_eq!(Toast::NoLink.text(), "No link support");
-    assert_eq!(Toast::NoWifi.text(), "This device has no Wi-Fi");
+    assert_eq!(Toast::NoLink.text(), "不支持联机");
+    assert_eq!(Toast::NoWifi.text(), "此设备没有Wi-Fi");
     let f = toast_face(Toast::NoLink);
     assert!(f.rgba.chunks(4).any(|p| p[3] > 0), "the banner is blank");
 }
 
 #[test]
 fn the_link_ending_says_who_ended_it() {
-    assert_eq!(Toast::LinkEnded.text(), "Link ended");
-    assert_eq!(Toast::PeerEnded.text(), "Your friend unplugged");
+    assert_eq!(Toast::LinkEnded.text(), "联机已结束");
+    assert_eq!(Toast::PeerEnded.text(), "对方已断开");
 }
 
 #[test]
 fn the_banner_says_what_happened_and_never_what_is_on_screen() {
     let all = Toast::all();
     assert_eq!(
-        all[..32],
+        all[..33],
         [
             Toast::StateSaved,
             Toast::StateLoaded,
             Toast::GameReset,
+            Toast::GameMissing,
             Toast::ShotCaptured,
             Toast::ShotFailed,
             Toast::NeedsGpsp,
@@ -82,12 +83,12 @@ fn the_banner_says_what_happened_and_never_what_is_on_screen() {
     let palettes = GbColors::all().count();
     assert_eq!(palettes, 49);
     assert_eq!(
-        all[32..32 + palettes],
+        all[33..33 + palettes],
         GbColors::all().map(Toast::Palette).collect::<Vec<_>>()[..],
         "the palette banners do not follow the fixed ones in palette order"
     );
     assert_eq!(
-        all[32 + palettes..],
+        all[33 + palettes..],
         QuickRow::ALL
             .into_iter()
             .filter(|r| r.binds())
@@ -125,8 +126,20 @@ fn no_toast_is_shrunk_to_fit_its_box() {
         let last = *inked.last().expect("the banner is blank");
         (first, last)
     };
-    let (top, bottom) = rows(Toast::StateSaved);
+    let font = slot_ui::text::label_font().unwrap();
     for t in Toast::all().into_iter().filter(|t| !t.alarm()) {
+        let layout = slot_ui::text::fit_even(font, &t.text(), 400.0, 20.0, 20.0);
+        let height = 28 * layout.lines.len().max(1) as u32;
+        let coverage = slot_ui::text::coverage(400, height, &layout);
+        let expected: Vec<usize> = (0..height as usize)
+            .filter(|row| {
+                coverage[row * 400..(row + 1) * 400]
+                    .iter()
+                    .any(|alpha| *alpha > 0)
+            })
+            .collect();
+        let top = *expected.first().unwrap();
+        let bottom = expected.last().unwrap() + 2;
         let (a, b) = rows(t);
         assert!(
             a.abs_diff(top) <= 1 && b.abs_diff(bottom) <= 1,
@@ -319,11 +332,8 @@ fn the_card_alarm_is_drawn_over_the_volume_bar() {
 
 #[test]
 fn the_card_alarm_says_what_failed_and_what_it_costs() {
-    assert_eq!(Toast::CardUnwritable.text(), "Can't write to SD card");
-    assert_eq!(
-        Toast::CardUnwritable.detail(),
-        Some("Progress is not being saved")
-    );
+    assert_eq!(Toast::CardUnwritable.text(), "无法写入SD卡");
+    assert_eq!(Toast::CardUnwritable.detail(), Some("当前进度无法保存"));
     assert_eq!(Toast::StateSaved.detail(), None);
 }
 
@@ -343,10 +353,7 @@ fn the_card_alarm_inks_both_of_its_lines() {
 fn a_card_that_can_be_repaired_says_how() {
     assert!(Toast::CardRepair.alarm());
     assert_eq!(Toast::CardRepair.text(), Toast::CardUnwritable.text());
-    assert_eq!(
-        Toast::CardRepair.detail(),
-        Some("Press SELECT + START to repair")
-    );
+    assert_eq!(Toast::CardRepair.detail(), Some("按SELECT + START修复"));
     assert!(!Toast::CardRepaired.alarm());
     assert!(!Toast::CardRepairFailed.alarm());
 }
@@ -405,7 +412,7 @@ fn a_repair_result_stays_up_longer_than_a_toast() {
 
 #[test]
 fn the_shot_toast_says_screenshot_captured_beside_a_camera() {
-    assert_eq!(Toast::ShotCaptured.text(), "Screenshot Captured");
+    assert_eq!(Toast::ShotCaptured.text(), "已截图");
     assert_eq!(Toast::ShotCaptured.icon(), Some(Icon::Camera));
     let f = toast_face(Toast::ShotCaptured);
     let beside = toast_face(Toast::Duplicate(QuickRow::ScSave));
@@ -423,7 +430,7 @@ fn the_shot_toast_says_screenshot_captured_beside_a_camera() {
 
 #[test]
 fn a_failed_shot_says_so_beside_the_alert() {
-    assert_eq!(Toast::ShotFailed.text(), "Screenshot Failed");
+    assert_eq!(Toast::ShotFailed.text(), "截图失败");
     assert_eq!(Toast::ShotFailed.icon(), Some(Icon::Alert));
 }
 
@@ -463,7 +470,7 @@ fn a_short_toast_stays_on_one_line() {
 
 #[test]
 fn a_long_toast_wraps_onto_two_even_lines_at_full_size() {
-    let short = ink_bands(&toast_face(Toast::StateSaved));
+    let short = ink_bands(&toast_face_text(Toast::Collection, "STATE SAVED"));
     let f = toast_face_text(
         Toast::Collection,
         "Removed from A Very Long Collection Name",
@@ -486,7 +493,7 @@ fn a_long_toast_wraps_onto_two_even_lines_at_full_size() {
 #[test]
 fn a_toast_is_set_the_size_of_the_shelf_title() {
     let toast = ink_bands(&toast_face(Toast::StateSaved))[0].1;
-    let heading = slot_ui::heading_text_face("State Saved", true);
+    let heading = slot_ui::heading_text_face(&Toast::StateSaved.text(), true);
     let title = ink_bands(&slot_ui::CartFace {
         rgba: heading.rgba,
         w: heading.w,
@@ -531,7 +538,7 @@ fn a_two_line_toast_deepens_the_band_to_hold_it() {
 #[test]
 fn an_edit_heading_is_set_the_size_of_a_toast() {
     let toast = ink_bands(&toast_face(Toast::StateSaved))[0].1;
-    let heading = slot_ui::heading_text_face("State Saved", false);
+    let heading = slot_ui::heading_text_face(&Toast::StateSaved.text(), false);
     let set = ink_bands(&slot_ui::CartFace {
         rgba: heading.rgba,
         w: heading.w,
@@ -545,10 +552,10 @@ fn an_edit_heading_is_set_the_size_of_a_toast() {
 fn the_kid_mode_unlock_toast_stays_on_one_line() {
     let f = toast_face(Toast::KidUnlocked);
     assert_eq!(ink_bands(&f).len(), 1, "{:?}", ink_bands(&f));
-    assert_eq!(Toast::KidUnlocked.text(), "Kid Mode is off until restart");
+    assert_eq!(Toast::KidUnlocked.text(), "儿童模式已关闭，重启后恢复");
 }
 
 #[test]
 fn the_lcd_shader_toast_says_lcd_on_every_panel() {
-    assert_eq!(Toast::ShaderLcd3x.text(), "Shader: LCD");
+    assert_eq!(Toast::ShaderLcd3x.text(), "滤镜：LCD");
 }

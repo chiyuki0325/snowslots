@@ -55,9 +55,9 @@ fn right_edge(items: &[Item]) -> f32 {
 #[test]
 fn the_list_names_its_rows_and_values() {
     let t = texts(&view(&gba(), 720.0).items);
-    assert!(t.contains(&"Label Printer".to_string()));
-    assert!(t.contains(&"Shell Color".to_string()));
-    assert!(t.contains(&"Solid".to_string()));
+    assert!(t.contains(&"标签打印".to_string()));
+    assert!(t.contains(&"外壳颜色".to_string()));
+    assert!(t.contains(&"不透明".to_string()));
 }
 
 #[test]
@@ -92,8 +92,8 @@ fn chips_have_a_heading_and_the_name_under_the_cart() {
     to_row(&mut s, Row::Color);
     s.press(Btn::A);
     let t = texts(&view(&s, 720.0).items);
-    assert!(t.contains(&"Shell Color".to_string()));
-    assert!(t.contains(&"Automatic".to_string()), "{t:?}");
+    assert!(t.contains(&"外壳颜色".to_string()));
+    assert!(t.contains(&"自动".to_string()), "{t:?}");
 }
 
 #[test]
@@ -106,7 +106,7 @@ fn custom_uses_the_closed_bar() {
     s.press(Btn::A);
     let v = view(&s, 720.0);
     assert!(v.closed_bar);
-    assert!(texts(&v.items).contains(&"Custom Shell".to_string()));
+    assert!(texts(&v.items).contains(&"自定义外壳".to_string()));
 }
 
 #[test]
@@ -120,7 +120,7 @@ fn hex_has_six_digits_and_a_hash_with_no_arrows() {
     assert!(matches!(s.screen, Screen::Hex { .. }));
     let v = view(&s, 720.0);
     let t = texts(&v.items);
-    assert!(t.contains(&"Shell Hex".to_string()));
+    assert!(t.contains(&"外壳色值".to_string()));
     assert!(t.contains(&"#".to_string()));
     let digits = v
         .items
@@ -149,9 +149,9 @@ fn an_empty_sheet_says_why() {
     );
     s.press(Btn::A);
     s.art_arrived(false, false);
-    assert!(texts(&view(&s, 720.0).items).contains(&"No Art Found".to_string()));
+    assert!(texts(&view(&s, 720.0).items).contains(&"未找到封面".to_string()));
     s.art_failed = true;
-    assert!(texts(&view(&s, 720.0).items).contains(&"No Connection".to_string()));
+    assert!(texts(&view(&s, 720.0).items).contains(&"未连接网络".to_string()));
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn chips_scroll_to_keep_the_highlight_on_screen() {
 #[test]
 fn the_label_row_never_reads_existing() {
     let t = texts(&view(&gba(), 720.0).items);
-    assert!(!t.contains(&"Existing".to_string()), "{t:?}");
+    assert!(!t.contains(&"现有标签".to_string()), "{t:?}");
 }
 
 #[test]
@@ -252,7 +252,7 @@ fn an_empty_sheet_of_duplicates_says_so() {
     s.adopt_text([7, 8, 9]);
     s.duplicates = true;
     s.art_arrived(false, false);
-    assert!(texts(&view(&s, 720.0).items).contains(&"No New Labels".to_string()));
+    assert!(texts(&view(&s, 720.0).items).contains(&"没有新标签".to_string()));
 }
 
 #[test]
@@ -263,7 +263,7 @@ fn a_worn_label_with_nothing_new_says_so_beside_the_marker() {
     s.duplicates = true;
     s.art_arrived(false, false);
     let items = view(&s, 720.0).items;
-    assert!(texts(&items).contains(&"No New Labels".to_string()));
+    assert!(texts(&items).contains(&"没有新标签".to_string()));
     assert_eq!(s.sheet, vec![LabelKind::Hand]);
 }
 
@@ -325,14 +325,7 @@ fn open_rows_are_names_and_inline_rows_carry_a_value_and_dots() {
     let s = Studio::new(cart(Platform::Gb), true);
     let items = view(&s, 720.0).items;
     let t = texts(&items);
-    for name in [
-        "Label Printer",
-        "Shell Color",
-        "Finish",
-        "Shape",
-        "Solid",
-        "Automatic",
-    ] {
+    for name in ["标签打印", "外壳颜色", "材质", "形状", "不透明", "自动"] {
         assert!(t.contains(&name.to_string()), "{name}: {t:?}");
     }
     assert_eq!(t.len(), 6, "{t:?}");
@@ -398,11 +391,11 @@ fn the_longest_name_fits_the_column() {
             let scale = items
                 .iter()
                 .find_map(|i| match i {
-                    Item::Text { text, scale, .. } if text == "Label Printer" => Some(*scale),
+                    Item::Text { text, scale, .. } if text == "标签打印" => Some(*scale),
                     _ => None,
                 })
                 .unwrap();
-            let face = slot_ui::heading_face("Label Printer");
+            let face = slot_ui::heading_face("标签打印");
             assert!(
                 face.w as f32 * scale <= band - 8.0,
                 "{w} {platform:?}: {} in {band}",
@@ -599,7 +592,7 @@ fn the_color_name_clears_the_footer_on_every_layout() {
             let (y, scale) = items
                 .iter()
                 .find_map(|i| match i {
-                    Item::Text { text, y, scale, .. } if text == "Automatic" => Some((*y, *scale)),
+                    Item::Text { text, y, scale, .. } if text == "自动" => Some((*y, *scale)),
                     _ => None,
                 })
                 .unwrap();
@@ -704,7 +697,7 @@ fn the_empty_printer_note_sits_under_the_printer_clear_of_the_marker() {
                 .items
                 .iter()
                 .find_map(|i| match i {
-                    Item::Text { text, x, .. } if text == "No Connection" => Some(*x),
+                    Item::Text { text, x, .. } if text == "未连接网络" => Some(*x),
                     _ => None,
                 })
                 .expect("no note");
@@ -720,6 +713,6 @@ fn a_worn_label_with_no_art_found_says_there_are_no_other_labels() {
     s.press(Btn::A);
     s.art_arrived(false, false);
     let texts = texts(&view(&s, 720.0).items);
-    assert!(texts.contains(&"No Other Labels".to_string()), "{texts:?}");
-    assert!(!texts.contains(&"No Art Found".to_string()));
+    assert!(texts.contains(&"没有其他标签".to_string()), "{texts:?}");
+    assert!(!texts.contains(&"未找到封面".to_string()));
 }

@@ -81,13 +81,13 @@ fn go_to(a: &mut App, shelf: &str) {
 fn r2_on_favorites_shows_the_next_collection_and_wraps() {
     let d = card();
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R2);
     assert_eq!(a.shelf_platform_name(), Some("Puzzlers"));
     press(&mut a, Btn::R2);
     assert_eq!(a.shelf_platform_name(), Some("Dozers"));
     press(&mut a, Btn::R2);
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
     press(&mut a, Btn::L2);
     assert_eq!(a.shelf_platform_name(), Some("Dozers"));
 }
@@ -117,14 +117,14 @@ fn collections_never_join_the_l1_r1_row_in_all_mode() {
         !seen.iter().any(|n| n == "Puzzlers" || n == "Dozers"),
         "{seen:?}"
     );
-    assert!(seen.iter().any(|n| n == "Favorites"), "{seen:?}");
+    assert!(seen.iter().any(|n| n == "收藏"), "{seen:?}");
 }
 
 #[test]
 fn the_stack_remembers_its_collection_across_shelves_and_reboots() {
     let d = card();
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R2);
     assert_eq!(a.shelf_platform_name(), Some("Puzzlers"));
     press(&mut a, Btn::R1);
@@ -144,7 +144,7 @@ fn the_stack_remembers_its_collection_across_shelves_and_reboots() {
 fn a_reboot_on_a_collection_comes_back_to_it() {
     let d = card();
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R2);
     a.flush_state();
     drop(a);
@@ -156,7 +156,7 @@ fn a_reboot_on_a_collection_comes_back_to_it() {
 fn a_collection_shelf_keeps_its_file_order_across_systems() {
     let d = card();
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R2);
     assert_eq!(a.shelf_stems(), ["Apotris", "Catrap"]);
 }
@@ -167,14 +167,14 @@ fn an_empty_collection_is_skipped_by_l2_r2() {
     put(d.path(), "Empty.txt", "");
     put(d.path(), "order.txt", "Puzzlers\nEmpty\nDozers\n");
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     let mut seen = Vec::new();
     for _ in 0..6 {
         press(&mut a, Btn::R2);
         seen.extend(name(&a));
     }
     assert!(!seen.iter().any(|n| n == "Empty"), "{seen:?}");
-    assert_eq!(seen[..3], ["Puzzlers", "Dozers", "Favorites"]);
+    assert_eq!(seen[..3], ["Puzzlers", "Dozers", "收藏"]);
 }
 
 #[test]
@@ -188,7 +188,7 @@ fn with_no_favorites_the_first_collection_takes_their_place() {
     }
     assert!(seen.iter().any(|n| n == "Puzzlers"), "{seen:?}");
     assert!(
-        !seen.iter().any(|n| n == "Favorites" || n == "Dozers"),
+        !seen.iter().any(|n| n == "收藏" || n == "Dozers"),
         "{seen:?}"
     );
     go_to(&mut a, "Puzzlers");
@@ -202,7 +202,7 @@ fn with_no_favorites_the_first_collection_takes_their_place() {
 fn unfavoriting_the_last_game_keeps_the_view_on_the_stack() {
     let d = card();
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::Y);
     assert_eq!(a.shelf_platform_name(), Some("Puzzlers"));
 }
@@ -216,7 +216,7 @@ fn a_missing_rom_is_hidden_and_its_line_kept() {
         "gba/Apotris\ngba/Gone\ngb/Catrap\n",
     );
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R2);
     assert_eq!(a.shelf_stems(), ["Apotris", "Catrap"]);
     assert_eq!(read(d.path(), "Puzzlers.txt").lines().count(), 3);
@@ -226,9 +226,9 @@ fn a_missing_rom_is_hidden_and_its_line_kept() {
 fn a_card_without_collections_behaves_as_before() {
     let d = bare_card();
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R2);
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
     assert_eq!(a.toast(), None);
 }
 
@@ -272,9 +272,9 @@ fn flip_shelf_mode(a: &mut App) {
 fn collections_mode_flattens_collections_into_the_row() {
     let d = card();
     let mut a = boot_with(d.path(), collections_mode(one_favorite()));
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     let seen = row(&mut a);
-    assert_eq!(seen[..3], ["Puzzlers", "Dozers", "Favorites"], "{seen:?}");
+    assert_eq!(seen[..3], ["Puzzlers", "Dozers", "收藏"], "{seen:?}");
     assert!(
         !seen
             .iter()
@@ -309,7 +309,7 @@ fn collections_mode_hides_an_empty_favorites() {
 fn changing_shelf_mode_keeps_the_shelf_when_it_still_exists() {
     let d = card();
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R2);
     assert_eq!(a.shelf_platform_name(), Some("Puzzlers"));
     flip_shelf_mode(&mut a);
@@ -317,7 +317,7 @@ fn changing_shelf_mode_keeps_the_shelf_when_it_still_exists() {
     flip_shelf_mode(&mut a);
     go_to(&mut a, "Game Boy Advance");
     flip_shelf_mode(&mut a);
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
 }
 
 #[test]
@@ -330,12 +330,12 @@ fn leaving_collections_mode_on_favorites_keeps_the_stack_on_favorites() {
             ..one_favorite()
         }),
     );
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     flip_shelf_mode(&mut a);
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
     press(&mut a, Btn::R1);
     press(&mut a, Btn::L1);
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
 }
 
 #[test]
@@ -356,7 +356,7 @@ fn the_shelf_mode_row_reads_and_cycles() {
 
 fn on_puzzlers(d: &TempDir) -> App {
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R2);
     assert_eq!(a.shelf_platform_name(), Some("Puzzlers"));
     a
@@ -385,7 +385,7 @@ fn remove_takes_it_out_and_centers_the_next_game() {
     assert!(a.edit().is_none());
     assert_eq!(read(d.path(), "Puzzlers.txt"), "gb/Catrap\n");
     assert_eq!(a.toast(), Some(Toast::Collection));
-    assert_eq!(a.collection_said().unwrap().1, "Removed from Puzzlers");
+    assert_eq!(a.collection_said().unwrap().1, "已从Puzzlers移除");
     assert_eq!(a.shelf_platform_name(), Some("Puzzlers"));
     assert_eq!(a.shelf_stems(), ["Catrap"]);
     assert_eq!(a.selected_stem(), Some("Catrap"));
@@ -455,7 +455,7 @@ fn removing_the_last_game_deletes_the_collection() {
     assert!(!d.path().join("Collections/Dozers.txt").exists());
     assert_eq!(read(d.path(), "order.txt"), "Puzzlers\n");
     assert_eq!(a.collection_names(), ["Puzzlers"]);
-    assert_eq!(a.collection_said().unwrap().1, "Removed from Dozers");
+    assert_eq!(a.collection_said().unwrap().1, "已从Dozers移除");
     let mut seen = Vec::new();
     for _ in 0..4 {
         press(&mut a, Btn::R2);
@@ -471,7 +471,7 @@ fn removing_the_last_game_stays_on_the_stack() {
     press(&mut a, Btn::R2);
     hold_y(&mut a);
     press(&mut a, Btn::A);
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
 }
 
 #[test]
@@ -508,7 +508,7 @@ fn removing_the_last_game_in_collections_mode_goes_to_the_next_shelf() {
     go_to(&mut a, "Dozers");
     hold_y(&mut a);
     press(&mut a, Btn::A);
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
 }
 
 #[test]
@@ -522,7 +522,7 @@ fn collections_mode_never_boots_onto_a_hidden_system_shelf() {
             ..collections_mode(one_favorite())
         },
     );
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
 }
 
 fn mixed() -> TempDir {
@@ -562,7 +562,7 @@ fn x_on_a_collection_picks_up_at_once() {
     let d = mixed();
     let mut a = on_mixed(&d);
     press(&mut a, Btn::X);
-    assert_eq!(a.moving(), Some("Move".to_string()));
+    assert_eq!(a.moving(), Some("移动".to_string()));
 }
 
 #[test]
@@ -656,7 +656,7 @@ fn four() -> TempDir {
 }
 
 fn flip_to(a: &mut App, shelf: &str) {
-    go_to(a, "Favorites");
+    go_to(a, "收藏");
     for _ in 0..6 {
         if a.shelf_platform_name() == Some(shelf) {
             return;
@@ -676,7 +676,7 @@ fn holding_x_moves_the_collection() {
     let mut a = boot_with(d.path(), one_favorite());
     flip_to(&mut a, "Puzzlers");
     hold_x(&mut a);
-    assert_eq!(a.moving(), Some("Move Puzzlers".to_string()));
+    assert_eq!(a.moving(), Some("移动Puzzlers".to_string()));
 }
 
 #[test]
@@ -686,7 +686,7 @@ fn releasing_x_keeps_the_collection_move_open() {
     flip_to(&mut a, "Puzzlers");
     hold_x(&mut a);
     settle(&mut a, 500);
-    assert_eq!(a.moving(), Some("Move Puzzlers".to_string()));
+    assert_eq!(a.moving(), Some("移动Puzzlers".to_string()));
 }
 
 #[test]
@@ -732,7 +732,7 @@ fn collections_mode_row_follows_the_new_order() {
     settle(&mut a, 1000);
     press(&mut a, Btn::A);
     let seen = row(&mut a);
-    assert_eq!(seen[..3], ["Favorites", "Racing", "Dozers"], "{seen:?}");
+    assert_eq!(seen[..3], ["收藏", "Racing", "Dozers"], "{seen:?}");
 }
 
 #[test]

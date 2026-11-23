@@ -1,14 +1,14 @@
 use crate::update::signal_bars;
 use crate::wifi::{Failure, Phase, Saved, Scanned, Snapshot, State};
 
-pub const OTHER_NETWORK: &str = "Other Network";
-pub const ENTER_PASSWORD: &str = "Enter Password";
-pub const SCAN_NETWORKS: &str = "Scan for Networks";
-pub const WIFI_OFF_MESSAGE: &str = "Turn on Wi-Fi to see networks";
-pub const SCANNING_MESSAGE: &str = "Scanning for networks";
-pub const PASSWORD_TITLE: &str = "Password";
-pub const NAME_TITLE: &str = "Network Name";
-pub const OPEN_HINT: &str = "Leave it empty for an open network";
+pub const OTHER_NETWORK: &str = "其他网络";
+pub const ENTER_PASSWORD: &str = "输入密码";
+pub const SCAN_NETWORKS: &str = "搜索网络";
+pub const WIFI_OFF_MESSAGE: &str = "打开Wi-Fi后可查看网络";
+pub const SCANNING_MESSAGE: &str = "正在搜索网络";
+pub const PASSWORD_TITLE: &str = "密码";
+pub const NAME_TITLE: &str = "网络名称";
+pub const OPEN_HINT: &str = "开放网络无需填写密码";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NetRow {
@@ -151,9 +151,9 @@ pub fn list_line(row: &NetRow, snap: &Snapshot) -> Line {
     match row {
         NetRow::Saved(s) => {
             let value = if connected(snap, &s.ssid) {
-                Some("Connected")
+                Some("已连接")
             } else if active(snap, &s.ssid) {
-                Some("Connecting")
+                Some("正在连接")
             } else {
                 None
             };
@@ -191,13 +191,13 @@ pub enum PageRow {
 impl PageRow {
     pub fn label(self) -> &'static str {
         match self {
-            PageRow::Status => "Status",
-            PageRow::Ip => "IP Address",
-            PageRow::Connect => "Connect",
-            PageRow::Disconnect => "Disconnect",
+            PageRow::Status => "状态",
+            PageRow::Ip => "IP地址",
+            PageRow::Connect => "连接",
+            PageRow::Disconnect => "断开",
             PageRow::Password => ENTER_PASSWORD,
-            PageRow::AutoJoin => "Auto-Join",
-            PageRow::Forget => "Forget",
+            PageRow::AutoJoin => "自动连接",
+            PageRow::Forget => "忘记网络",
         }
     }
 }
@@ -223,7 +223,7 @@ pub fn page_rows(snap: &Snapshot, ssid: &str, off: bool) -> Vec<PageRow> {
 
 pub fn status_text(snap: &Snapshot, ssid: &str, off: bool) -> String {
     if off {
-        return "Wi-Fi Off".into();
+        return "Wi-Fi已关闭".into();
     }
     if let Some((s, f)) = &snap.failure {
         if s == ssid {
@@ -234,14 +234,14 @@ pub fn status_text(snap: &Snapshot, ssid: &str, off: bool) -> String {
         return p.label().into();
     }
     if !ours(snap, ssid) {
-        return "Not Connected".into();
+        return "未连接".into();
     }
     match snap.status.state {
         State::Completed if snap.status.ip.is_some() => Phase::Connected.label(),
         State::Completed => Phase::GettingIp.label(),
         State::Handshake => Phase::Authenticating.label(),
         State::Associating => Phase::Connecting.label(),
-        _ => "Not Connected",
+        _ => "未连接",
     }
     .into()
 }
@@ -254,13 +254,13 @@ pub fn page_line(row: PageRow, snap: &Snapshot, ssid: &str, off: bool) -> Line {
                 .ip
                 .clone()
                 .filter(|_| !off && ours(snap, ssid))
-                .unwrap_or_else(|| "None".into()),
+                .unwrap_or_else(|| "无".into()),
         ),
         PageRow::AutoJoin => snap
             .saved
             .iter()
             .find(|s| s.ssid == ssid)
-            .map(|s| if s.auto_join { "On" } else { "Off" }.to_string()),
+            .map(|s| if s.auto_join { "开" } else { "关" }.to_string()),
         _ => None,
     };
     Line::plain(row.label(), value)

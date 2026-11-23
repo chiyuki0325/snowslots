@@ -74,7 +74,7 @@ fn go_to(a: &mut App, shelf: &str) {
 }
 
 fn flip_to(a: &mut App, shelf: &str) {
-    go_to(a, "Favorites");
+    go_to(a, "收藏");
     for _ in 0..6 {
         if a.shelf_platform_name() == Some(shelf) {
             return;
@@ -112,7 +112,7 @@ fn to_choice(a: &mut App, name: &str) {
 fn to_keyboard(a: &mut App) {
     on_cart(a, "Game Boy Advance", "Fusion");
     hold(a, Btn::Y);
-    to_choice(a, "New Collection");
+    to_choice(a, "新建合集");
     press(a, Btn::A);
 }
 
@@ -153,7 +153,7 @@ fn key(a: &mut App, want: &str) {
 fn type_text(a: &mut App, text: &str) {
     for ch in text.chars() {
         match ch {
-            ' ' => key(a, "Space"),
+            ' ' => key(a, "空格"),
             _ => key(a, &ch.to_string()),
         }
     }
@@ -164,7 +164,7 @@ fn type_text(a: &mut App, text: &str) {
 fn l2_r2_on_the_stack_never_toast() {
     let d = card();
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     for _ in 0..3 {
         press(&mut a, Btn::R2);
         assert_eq!(a.toast(), None);
@@ -177,14 +177,14 @@ fn l2_r2_on_the_stack_never_toast() {
 fn l1_r1_from_a_collection_move_as_if_on_favorites() {
     let d = card();
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R1);
     let right = a.shelf_platform_name().map(str::to_string);
     press(&mut a, Btn::L1);
     press(&mut a, Btn::L1);
     let left = a.shelf_platform_name().map(str::to_string);
     press(&mut a, Btn::R1);
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
     press(&mut a, Btn::R2);
     press(&mut a, Btn::R2);
     assert_eq!(a.shelf_platform_name(), Some("Dozers"));
@@ -216,7 +216,7 @@ fn with_no_collections_only_new_collection_is_offered() {
     let mut a = boot_with(d.path(), one_favorite());
     on_cart(&mut a, "Game Boy Advance", "Fusion");
     hold(&mut a, Btn::Y);
-    assert_eq!(a.choice_names(), ["New Collection"]);
+    assert_eq!(a.choice_names(), ["新建合集"]);
 }
 
 #[test]
@@ -227,7 +227,7 @@ fn with_one_collection_it_sits_beside_new_collection() {
     let mut a = boot_with(d.path(), one_favorite());
     on_cart(&mut a, "Game Boy Advance", "Fusion");
     hold(&mut a, Btn::Y);
-    assert_eq!(a.choice_names(), ["Puzzlers", "New Collection"]);
+    assert_eq!(a.choice_names(), ["Puzzlers", "新建合集"]);
 }
 
 #[test]
@@ -236,7 +236,7 @@ fn favorites_is_never_offered() {
     let mut a = boot_with(d.path(), one_favorite());
     on_cart(&mut a, "Game Boy Advance", "Fusion");
     hold(&mut a, Btn::Y);
-    assert!(!a.choice_names().iter().any(|n| n == "Favorites"));
+    assert!(!a.choice_names().iter().any(|n| n == "收藏"));
 }
 
 #[test]
@@ -244,7 +244,7 @@ fn the_keyboard_is_titled_new_collection() {
     let d = card();
     let mut a = boot_with(d.path(), one_favorite());
     to_keyboard(&mut a);
-    assert_eq!(a.keyboard().unwrap().title(), "New Collection");
+    assert_eq!(a.keyboard().unwrap().title(), "新建合集");
 }
 
 #[test]
@@ -257,7 +257,7 @@ fn a_first_collection_names_and_adds() {
     assert!(a.keyboard().is_none());
     assert_eq!(read(d.path(), "racing.txt"), "gba/Fusion\n");
     assert_eq!(read(d.path(), "order.txt"), "racing\n");
-    assert_eq!(a.collection_said().unwrap().1, "Added to racing");
+    assert_eq!(a.collection_said().unwrap().1, "已加入racing");
 }
 
 #[test]
@@ -269,10 +269,7 @@ fn a_taken_name_in_another_case_is_refused() {
     press(&mut a, Btn::Start);
     let kb = a.keyboard().unwrap();
     assert!(kb.alert());
-    assert_eq!(
-        kb.subtitle(),
-        Some("Name already exists, use a different name")
-    );
+    assert_eq!(kb.subtitle(), Some("名称已存在，请换一个名字"));
     assert_eq!(read(d.path(), "order.txt"), "Puzzlers\nDozers\n");
 }
 
@@ -289,11 +286,7 @@ fn every_name_that_cannot_be_a_file_is_refused() {
         let kb = a
             .keyboard()
             .unwrap_or_else(|| panic!("{bad:?} closed the keyboard"));
-        assert_eq!(
-            kb.subtitle(),
-            Some("Name not allowed, use a different name"),
-            "{bad:?}"
-        );
+        assert_eq!(kb.subtitle(), Some("名称不可用，请换一个名字"), "{bad:?}");
         assert_eq!(kb.text(), bad);
         assert_eq!(read(d.path(), "order.txt"), "Puzzlers\nDozers\n", "{bad:?}");
     }
@@ -317,7 +310,7 @@ fn a_refusal_keeps_the_text_the_key_and_shift() {
     let mut a = boot_with(d.path(), one_favorite());
     to_keyboard(&mut a);
     type_text(&mut a, "dozers");
-    key(&mut a, "Shift");
+    key(&mut a, "大小写");
     let before = {
         let kb = a.keyboard().unwrap();
         (kb.row(), kb.col(), kb.shift(), kb.text())
@@ -363,7 +356,7 @@ fn a_collection_whose_games_are_all_missing_stays_on_the_card_hidden() {
     put(d.path(), "Gone.txt", "gba/Lost\ngb/Missing\n");
     put(d.path(), "order.txt", "Puzzlers\nGone\nDozers\n");
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     let mut seen = Vec::new();
     for _ in 0..4 {
         press(&mut a, Btn::R2);
@@ -381,7 +374,7 @@ fn the_tapped_game_move_is_dropped_when_the_hold_lifts_the_collection() {
     flip_to(&mut a, "Puzzlers");
     let stems: Vec<String> = a.shelf_stems().iter().map(|s| s.to_string()).collect();
     hold(&mut a, Btn::X);
-    assert_eq!(a.moving(), Some("Move Puzzlers".to_string()));
+    assert_eq!(a.moving(), Some("移动Puzzlers".to_string()));
     assert!(matches!(a.edit(), Some(Edit::MovingCollection { .. })));
     press(&mut a, Btn::B);
     assert!(a.edit().is_none());

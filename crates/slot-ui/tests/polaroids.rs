@@ -40,15 +40,15 @@ fn relative_time_reads_off_the_stamp() {
     let now = "2026-08-09_14-36-05";
     assert_eq!(
         Polaroids::relative_time("2026-08-09_14-32-05", now, true),
-        "4 min ago"
+        "4分钟前"
     );
     assert_eq!(
         Polaroids::relative_time("2026-08-09_13-36-05", now, true),
-        "1 hr ago"
+        "1小时前"
     );
     assert_eq!(
         Polaroids::relative_time("2026-08-09_11-36-05", now, true),
-        "3 hr ago"
+        "3小时前"
     );
 }
 
@@ -56,7 +56,7 @@ fn relative_time_reads_off_the_stamp() {
 fn an_hour_before_midnight_is_not_yesterday() {
     assert_eq!(
         Polaroids::relative_time("2026-08-08_23-30-00", "2026-08-09_01-00-00", true),
-        "1 hr ago"
+        "1小时前"
     );
 }
 
@@ -64,7 +64,7 @@ fn an_hour_before_midnight_is_not_yesterday() {
 fn a_stamp_ahead_of_the_clock_does_not_read_as_a_lifetime_ago() {
     assert_eq!(
         Polaroids::relative_time("2026-08-09_15-00-00", "2026-08-09_14-36-05", true),
-        "just now"
+        "刚刚"
     );
 }
 
@@ -200,6 +200,6 @@ fn a_switcher_with_no_gauge_still_shows_its_clock() {
 fn a_shot_stamp_with_milliseconds_reads_as_relative_time() {
     assert_eq!(
         Polaroids::relative_time("2026-10-22_17-30-05-120", "2026-10-22_17-32-05", true),
-        "2 min ago"
+        "2分钟前"
     );
 }

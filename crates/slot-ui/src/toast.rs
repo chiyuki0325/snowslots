@@ -11,6 +11,7 @@ pub enum Toast {
     StateSaved,
     StateLoaded,
     GameReset,
+    GameMissing,
     ShotCaptured,
     ShotFailed,
     NeedsGpsp,
@@ -45,10 +46,11 @@ pub enum Toast {
 }
 
 impl Toast {
-    const FIXED: [Toast; 32] = [
+    const FIXED: [Toast; 33] = [
         Toast::StateSaved,
         Toast::StateLoaded,
         Toast::GameReset,
+        Toast::GameMissing,
         Toast::ShotCaptured,
         Toast::ShotFailed,
         Toast::NeedsGpsp,
@@ -102,7 +104,7 @@ impl Toast {
 
     pub fn icon(self) -> Option<Icon> {
         match self {
-            Toast::Duplicate(_) | Toast::ShotFailed => Some(Icon::Alert),
+            Toast::Duplicate(_) | Toast::ShotFailed | Toast::GameMissing => Some(Icon::Alert),
             Toast::ShotCaptured => Some(Icon::Camera),
             _ => None,
         }
@@ -126,9 +128,9 @@ impl Toast {
 
     pub fn detail(self) -> Option<&'static str> {
         match self {
-            Toast::CardUnwritable => Some("Progress is not being saved"),
-            Toast::CardRepair => Some("Press SELECT + START to repair"),
-            Toast::CardRepairCharge => Some("Charge the battery to repair"),
+            Toast::CardUnwritable => Some("当前进度无法保存"),
+            Toast::CardRepair => Some("按SELECT + START修复"),
+            Toast::CardRepairCharge => Some("请先充电再修复"),
             _ => None,
         }
     }
@@ -136,46 +138,47 @@ impl Toast {
     pub fn text(self) -> String {
         match self {
             Toast::Duplicate(row) if row.game_button().is_some() => {
-                format!("Same as Console {}", row.label())
+                format!("与游戏按键{}重复", row.label())
             }
-            Toast::Duplicate(row) => format!("Same as {}", row.label()),
+            Toast::Duplicate(row) => format!("与{}重复", row.label()),
             other => other.fixed_text().to_string(),
         }
     }
 
     fn fixed_text(self) -> &'static str {
         match self {
-            Toast::StateSaved => "State Saved",
-            Toast::StateLoaded => "State Loaded",
-            Toast::GameReset => "Game Reset",
-            Toast::ShotCaptured => "Screenshot Captured",
-            Toast::ShotFailed => "Screenshot Failed",
-            Toast::NeedsGpsp => "Please switch to gpSP",
-            Toast::NeedsMgba => "Please switch to mGBA",
-            Toast::NoLink => "No link support",
-            Toast::NoWifi => "This device has no Wi-Fi",
-            Toast::LinkEnded => "Link ended",
-            Toast::PeerEnded => "Your friend unplugged",
-            Toast::BiosMismatch => "BIOS does not match",
-            Toast::ColourOn => "Correction On",
-            Toast::ColourOff => "Correction Off",
-            Toast::ShaderOff => "Shader: Off",
-            Toast::ShaderLcd3x => "Shader: LCD",
-            Toast::ShaderGrid => "Shader: Grid",
-            Toast::ShaderDot => "Shader: Dot",
-            Toast::ShaderSimpletex => "Shader: Simpletex",
-            Toast::ShaderShimmerless => "Shader: Shimmerless",
-            Toast::CardUnwritable => "Can't write to SD card",
-            Toast::CardRepair | Toast::CardRepairCharge => "Can't write to SD card",
-            Toast::CardRepaired => "SD card repaired",
-            Toast::CardRepairFailed => "Card repair failed",
-            Toast::Forgotten => "Network forgotten",
-            Toast::Collection => "Collection",
-            Toast::KidUnlocked => "Kid Mode is off until restart",
-            Toast::TintOff => "Wallpaper Tint: Off",
-            Toast::TintLow => "Wallpaper Tint: 25%",
-            Toast::TintMedium => "Wallpaper Tint: 45%",
-            Toast::TintHigh => "Wallpaper Tint: 65%",
+            Toast::StateSaved => "已保存状态",
+            Toast::StateLoaded => "已读取状态",
+            Toast::GameReset => "已重置游戏",
+            Toast::GameMissing => "找不到游戏，正在刷新列表",
+            Toast::ShotCaptured => "已截图",
+            Toast::ShotFailed => "截图失败",
+            Toast::NeedsGpsp => "请切换至gpSP",
+            Toast::NeedsMgba => "请切换至mGBA",
+            Toast::NoLink => "不支持联机",
+            Toast::NoWifi => "此设备没有Wi-Fi",
+            Toast::LinkEnded => "联机已结束",
+            Toast::PeerEnded => "对方已断开",
+            Toast::BiosMismatch => "BIOS不匹配",
+            Toast::ColourOn => "色彩校正：开",
+            Toast::ColourOff => "色彩校正：关",
+            Toast::ShaderOff => "滤镜：关",
+            Toast::ShaderLcd3x => "滤镜：LCD",
+            Toast::ShaderGrid => "滤镜：网格",
+            Toast::ShaderDot => "滤镜：点阵",
+            Toast::ShaderSimpletex => "滤镜：Simpletex",
+            Toast::ShaderShimmerless => "滤镜：Shimmerless",
+            Toast::CardUnwritable => "无法写入SD卡",
+            Toast::CardRepair | Toast::CardRepairCharge => "无法写入SD卡",
+            Toast::CardRepaired => "SD卡已修复",
+            Toast::CardRepairFailed => "SD卡修复失败",
+            Toast::Forgotten => "已忘记网络",
+            Toast::Collection => "合集",
+            Toast::KidUnlocked => "儿童模式已关闭，重启后恢复",
+            Toast::TintOff => "壁纸着色：关",
+            Toast::TintLow => "壁纸着色：25%",
+            Toast::TintMedium => "壁纸着色：45%",
+            Toast::TintHigh => "壁纸着色：65%",
             Toast::Palette(p) => p.label(),
             Toast::Duplicate(_) => "",
         }

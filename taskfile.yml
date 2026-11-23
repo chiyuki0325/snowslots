@@ -526,21 +526,46 @@ tasks:
       - 'echo "built vendor/fsck.exfat from exfatprogs {{.EXFATPROGS_VERSION}}"'
 
   device:sh:
-    desc: Run CMD on the box the device build wants, fetching one if this is not it
+    desc: Run CMD in the device build environment, or natively with SLOT_DEVICE_NATIVE=1
     internal: true
     requires:
       vars: [ CMD ]
     cmds:
       - |
         set -eu
-        if [ "$(uname -s)-$(uname -m)" = "Linux-aarch64" ]; then
+        # Bullseye's glibc 2.31 also runs on the device; an arm64 host can have a newer glibc.
+        # Native execution is only for the target or a compatible CI image that opts in.
+        if [ "${SLOT_DEVICE_NATIVE:-0}" = "1" ]; then
+          if [ "$(uname -s)-$(uname -m)" != "Linux-aarch64" ]; then
+            echo "SLOT_DEVICE_NATIVE=1 needs Linux-aarch64" >&2
+            exit 1
+          fi
           sh -c '{{.CMD}}'
         else
-          docker run --rm --platform linux/arm64 -v "$PWD":/src -w /src rust:1-bullseye sh -c '{{.CMD}}'
+          # Share downloaded Cargo dependencies with the old branch, not a second host cache.
+          # Build artifacts remain in the mounted checkout, while root-owned outputs are
+          # returned to the invoking user even when a build fails.
+          # A worktree's .git file points outside the checkout; expose that metadata read-only.
+          git_common_dir="$(git rev-parse --path-format=absolute --git-common-dir)"
+          docker run --rm --platform linux/arm64 \
+            -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+            -e RUSTUP_TOOLCHAIN=1.96.1 \
+            -v snowslots-cargo-registry:/usr/local/cargo/registry \
+            -v "$git_common_dir:$git_common_dir:ro" \
+            -v "$PWD":/src -w /src rust:1.96.1-bullseye sh -c '
+              set -e
+              trap '"'"'
+                for output in target-device vendor dist-device; do
+                  [ ! -e "$output" ] || chown -R "$HOST_UID:$HOST_GID" "$output"
+                done
+              '"'"' EXIT
+              git config --global --add safe.directory /src
+              {{.CMD}}
+            '
         fi
 
   build:device:
-    desc: Build for the H700, in an arm64 container unless this is already one
+    desc: Build for the H700 in an arm64 Bullseye container unless SLOT_DEVICE_NATIVE=1
     cmds:
       - task: device:sh
         vars:

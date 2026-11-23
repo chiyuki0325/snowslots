@@ -12,15 +12,15 @@ use crate::polaroids::{draw_album_chrome, AlbumChrome, Polaroids};
 pub const PAN_KEY: &str = "PAN";
 
 pub const SHOT_HINTS: [(&str, &str); 9] = [
-    ("A", "View"),
-    ("B", "Back"),
-    ("Y", "Delete"),
-    ("A", "Zoom"),
-    (PAN_KEY, "Pan"),
-    ("B", "Zoom Out"),
-    ("SELECT", "Multi"),
-    ("A", "Tick"),
-    ("B", "Done"),
+    ("A", "查看"),
+    ("B", "返回"),
+    ("Y", "删除"),
+    ("A", "放大"),
+    (PAN_KEY, "平移"),
+    ("B", "缩小"),
+    ("SELECT", "多选"),
+    ("A", "勾选"),
+    ("B", "完成"),
 ];
 
 const GRID_LEGEND: [usize; 4] = [0, 1, 2, 6];

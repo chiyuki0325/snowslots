@@ -67,7 +67,7 @@ fn every_direction_wraps() {
     assert_eq!(selected(&kb), "p");
     select(&mut kb, "1");
     press(&mut kb, &[Btn::Up]);
-    assert_eq!(selected(&kb), "Space");
+    assert_eq!(selected(&kb), "空格");
     press(&mut kb, &[Btn::Down]);
     assert_eq!(selected(&kb), "1");
 }
@@ -75,12 +75,12 @@ fn every_direction_wraps() {
 #[test]
 fn vertical_moves_clamp_onto_short_rows() {
     let mut kb = general("");
-    select(&mut kb, "Delete");
+    select(&mut kb, "删除");
     press(&mut kb, &[Btn::Down]);
     assert_eq!(selected(&kb), "p");
     select(&mut kb, "m");
     press(&mut kb, &[Btn::Down]);
-    assert_eq!(selected(&kb), "Space");
+    assert_eq!(selected(&kb), "空格");
     press(&mut kb, &[Btn::Up]);
     assert_eq!(selected(&kb), "m");
 }
@@ -100,7 +100,7 @@ fn up_and_down_stay_in_line_across_the_staggered_rows() {
     assert_eq!(selected(&kb), "b");
     select(&mut kb, "a");
     press(&mut kb, &[Btn::Down]);
-    assert_eq!(selected(&kb), "Shift");
+    assert_eq!(selected(&kb), "大小写");
 }
 
 #[test]
@@ -132,9 +132,9 @@ fn shift_gives_capitals_and_digit_symbols() {
     select(&mut kb, "Q");
     press(&mut kb, &[Btn::A, Btn::A]);
     assert_eq!(text(&kb), "!QQ");
-    select(&mut kb, "Shift");
+    select(&mut kb, "大小写");
     press(&mut kb, &[Btn::A]);
-    assert_eq!(selected(&kb), "Shift");
+    assert_eq!(selected(&kb), "大小写");
     select(&mut kb, "q");
 }
 
@@ -163,7 +163,17 @@ fn symbols_switch_every_key() {
     );
     assert_eq!(
         row(&kb, 3),
-        ["Shift", ",", ".", "-", "\u{20ac}", "\u{a3}", "\u{a5}", "\u{a2}", "abc"]
+        [
+            "大小写",
+            ",",
+            ".",
+            "-",
+            "\u{20ac}",
+            "\u{a3}",
+            "\u{a5}",
+            "\u{a2}",
+            "abc"
+        ]
     );
 }
 
@@ -212,7 +222,7 @@ fn start_and_done_return_the_text_untrimmed() {
     let mut kb = general(" a ");
     assert_eq!(kb.press(Btn::Start), Typed::Done(" a ".into()));
     let mut kb = general(" a ");
-    select(&mut kb, "Done");
+    select(&mut kb, "完成");
     assert_eq!(kb.press(Btn::A), Typed::Done(" a ".into()));
 }
 
@@ -258,8 +268,8 @@ fn the_numeric_pad_is_gabagools() {
     assert_eq!(
         rows,
         [
-            vec!["7", "8", "9", "Delete"],
-            vec!["4", "5", "6", "Done"],
+            vec!["7", "8", "9", "删除"],
+            vec!["4", "5", "6", "完成"],
             vec!["1", "2", "3"],
             vec!["0"]
         ]
@@ -325,14 +335,11 @@ fn the_help_lists_only_the_shortcuts_in_two_columns() {
     };
     assert_eq!(
         labels(Layout::General),
-        [
-            vec!["Delete", "Space", "Shift"],
-            vec!["Cursor", "Cancel", "Done"]
-        ]
+        [vec!["删除", "空格", "大小写"], vec!["光标", "取消", "完成"]]
     );
     assert_eq!(
         labels(Layout::Numeric),
-        [vec!["Delete", "Cursor"], vec!["Cancel", "Done"]]
+        [vec!["删除", "光标"], vec!["取消", "完成"]]
     );
 }
 

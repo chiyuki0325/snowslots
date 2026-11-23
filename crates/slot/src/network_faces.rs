@@ -141,18 +141,18 @@ impl NetworkSync {
             lock: [false, true].map(|l| up(&net_lock_face(l))),
         });
         let cancel = [false, true].map(|light| {
-            let [face, _] = prompt_legends(footer_ink(light), "Cancel", "Join");
+            let [face, _] = prompt_legends(footer_ink(light), "取消", "加入");
             let (id, w, _) = up(&face);
             (id, w)
         });
         let retry = [false, true].map(|light| {
-            let [_, face] = prompt_legends(footer_ink(light), "Cancel", "Retry");
+            let [_, face] = prompt_legends(footer_ink(light), "取消", "重试");
             let (id, w, _) = up(&face);
             (id, w)
         });
         let mut word = |w: &str| {
             [false, true].map(|light| {
-                let [_, face] = prompt_legends(footer_ink(light), "Back", w);
+                let [_, face] = prompt_legends(footer_ink(light), "返回", w);
                 let (id, w, _) = up(&face);
                 (id, w)
             })
@@ -160,14 +160,17 @@ impl NetworkSync {
         app.set_network_legends(NetLegends {
             cancel,
             retry,
-            scan: word("Scan"),
-            join: word("Join"),
-            connect: word("Connect"),
-            disconnect: word("Disconnect"),
-            forget: word("Forget"),
+            scan: word("搜索"),
+            join: word("加入"),
+            connect: word("连接"),
+            disconnect: word("断开"),
+            forget: word("忘记"),
         });
-        let [no, yes] = prompt_legends(footer_ink(false), "Cancel", "Forget");
-        self.forget = [menu_face("Forget"), no, yes].iter().map(&mut up).collect();
+        let [no, yes] = prompt_legends(footer_ink(false), "取消", "忘记");
+        self.forget = [menu_face("忘记网络"), no, yes]
+            .iter()
+            .map(&mut up)
+            .collect();
         app.set_forget_faces(self.forget.clone());
     }
 
@@ -248,7 +251,7 @@ impl NetworkSync {
         let (Some(name), Some(tex)) = (name, app.toast_tex(Toast::Forgotten)) else {
             return;
         };
-        let face = toast_face_text(Toast::Forgotten, &format!("{name} was forgotten"));
+        let face = toast_face_text(Toast::Forgotten, &format!("已忘记{name}"));
         compositor.update_texture(tex, face.w, face.h, &face.rgba);
     }
 

@@ -58,8 +58,8 @@ impl LinkStep {
 
     pub fn line(self) -> &'static str {
         match self {
-            LinkStep::Radio => "Waiting for a friend",
-            LinkStep::Waiting => "Waiting for a friend",
+            LinkStep::Radio => "正在等待其他玩家",
+            LinkStep::Waiting => "正在等待其他玩家",
         }
     }
 
@@ -84,17 +84,17 @@ impl LinkFail {
 
     pub fn line(self, kind: LinkKind) -> &'static str {
         match self {
-            LinkFail::Radio => "The radio did not come up",
-            LinkFail::NobodyCame => "No one joined, try again",
-            LinkFail::PeerVanished if kind == LinkKind::Wireless => "Lost the connection",
-            LinkFail::PeerVanished => "The cable came loose",
-            LinkFail::Cancelled => "Cancelled",
+            LinkFail::Radio => "无线网络启动失败",
+            LinkFail::NobodyCame => "无人加入，请重试",
+            LinkFail::PeerVanished if kind == LinkKind::Wireless => "连接已断开",
+            LinkFail::PeerVanished => "连接线已断开",
+            LinkFail::Cancelled => "已取消",
         }
     }
 
     pub fn hint(self) -> Option<&'static str> {
         match self {
-            LinkFail::Radio => Some("Check logs"),
+            LinkFail::Radio => Some("请检查日志"),
             _ => None,
         }
     }
@@ -344,24 +344,21 @@ mod step_tests {
     #[test]
     fn a_warm_radio_captions_the_first_step_as_the_search() {
         assert_eq!(LinkStep::Radio.shown(true), LinkStep::Waiting);
-        assert_eq!(LinkStep::Radio.shown(true).line(), "Waiting for a friend");
+        assert_eq!(LinkStep::Radio.shown(true).line(), "正在等待其他玩家");
     }
 
     #[test]
     fn a_cold_radio_keeps_its_own_step_and_waits_for_a_friend_too() {
         assert_eq!(LinkStep::Radio.shown(false), LinkStep::Radio);
-        assert_eq!(LinkStep::Radio.shown(false).line(), "Waiting for a friend");
+        assert_eq!(LinkStep::Radio.shown(false).line(), "正在等待其他玩家");
     }
 
     #[test]
     fn a_dropped_link_names_the_hardware_it_ran_on() {
-        assert_eq!(
-            LinkFail::PeerVanished.line(LinkKind::Cable),
-            "The cable came loose"
-        );
+        assert_eq!(LinkFail::PeerVanished.line(LinkKind::Cable), "连接线已断开");
         assert_eq!(
             LinkFail::PeerVanished.line(LinkKind::Wireless),
-            "Lost the connection"
+            "连接已断开"
         );
         for fail in [LinkFail::Radio, LinkFail::NobodyCame, LinkFail::Cancelled] {
             assert_eq!(fail.line(LinkKind::Cable), fail.line(LinkKind::Wireless));
@@ -370,11 +367,8 @@ mod step_tests {
 
     #[test]
     fn only_a_radio_failure_points_at_the_logs() {
-        assert_eq!(
-            LinkFail::Radio.line(LinkKind::Cable),
-            "The radio did not come up"
-        );
-        assert_eq!(LinkFail::Radio.hint(), Some("Check logs"));
+        assert_eq!(LinkFail::Radio.line(LinkKind::Cable), "无线网络启动失败");
+        assert_eq!(LinkFail::Radio.hint(), Some("请检查日志"));
         assert_eq!(LinkFail::NobodyCame.hint(), None);
         assert_eq!(LinkFail::PeerVanished.hint(), None);
     }

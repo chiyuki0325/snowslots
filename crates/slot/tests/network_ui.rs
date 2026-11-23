@@ -163,7 +163,7 @@ fn scan_results_run_by_strength_without_saved_networks() {
             line("Home", None, true, Some(3)),
             line("Neighbor 5G", None, true, Some(2)),
             line("xfinitywifi", None, false, Some(1)),
-            line("Other Network", None, false, None),
+            line("其他网络", None, false, None),
         ]
     );
 }
@@ -202,7 +202,7 @@ fn hidden_names_drop_and_duplicates_merge_into_the_strongest() {
         lines(&a),
         vec![
             line("Twin", None, true, Some(3)),
-            line("Other Network", None, false, None),
+            line("其他网络", None, false, None),
         ]
     );
 }
@@ -237,7 +237,7 @@ fn the_list_starts_at_the_top_once_the_scan_lands() {
     let _g = serial();
     let (_d, mut a, _log) = booted(Fake::demo());
     open_scan(&mut a);
-    assert_eq!(labels(&a).last().unwrap(), "Other Network");
+    assert_eq!(labels(&a).last().unwrap(), "其他网络");
     assert_eq!(a.network_screen().unwrap().selected, 0);
     assert_eq!(selected_label(&a), "Home");
 }
@@ -247,11 +247,11 @@ fn other_network_keeps_the_pointer_across_a_rescan() {
     let _g = serial();
     let (_d, mut a, _log) = booted(Fake::demo());
     open_scan(&mut a);
-    select(&mut a, "Other Network");
+    select(&mut a, "其他网络");
     for _ in 0..4 {
         settle(&mut a);
     }
-    assert_eq!(selected_label(&a), "Other Network");
+    assert_eq!(selected_label(&a), "其他网络");
 }
 
 #[test]
@@ -262,7 +262,7 @@ fn a_secured_network_asks_for_a_password_then_lands_on_its_page() {
     select(&mut a, "Home");
     press(&mut a, Btn::A);
     let kb = a.keyboard().expect("no keyboard");
-    assert_eq!(kb.title(), "Password");
+    assert_eq!(kb.title(), "密码");
     assert_eq!(kb.subtitle(), Some("Home"));
     assert_eq!(kb.text(), "");
     assert_eq!(
@@ -282,7 +282,7 @@ fn a_secured_network_asks_for_a_password_then_lands_on_its_page() {
     );
     settle(&mut a);
     assert!(logged(&log, "add Home"));
-    assert_eq!(lines(&a)[0], line("Status", Some("Connected"), false, None));
+    assert_eq!(lines(&a)[0], line("状态", Some("已连接"), false, None));
 }
 
 #[test]
@@ -347,7 +347,7 @@ fn a_password_over_63_characters_is_invalid() {
     press(&mut a, Btn::Start);
     assert_eq!(
         a.update_text(),
-        Some(("Invalid Password".to_string(), String::new()))
+        Some(("密码无效".to_string(), String::new()))
     );
 }
 
@@ -362,7 +362,7 @@ fn a_short_password_keeps_the_text_and_says_it_is_invalid() {
     press(&mut a, Btn::Start);
     assert_eq!(
         a.update_text(),
-        Some(("Invalid Password".to_string(), String::new()))
+        Some(("密码无效".to_string(), String::new()))
     );
     press(&mut a, Btn::B);
     assert_eq!(a.update_text(), None);
@@ -382,15 +382,15 @@ fn other_network_asks_name_then_password_and_saves_hidden() {
     let _g = serial();
     let (_d, mut a, log) = booted(Fake::demo());
     open_scan(&mut a);
-    select(&mut a, "Other Network");
+    select(&mut a, "其他网络");
     press(&mut a, Btn::A);
-    assert_eq!(a.keyboard().map(|k| k.title()), Some("Network Name"));
+    assert_eq!(a.keyboard().map(|k| k.title()), Some("网络名称"));
     assert_eq!(a.keyboard_for(), Some(&KeyboardFor::NetworkName));
     type_text(&mut a, "attic");
     press(&mut a, Btn::Start);
     let kb = a.keyboard().expect("no password keyboard");
-    assert_eq!(kb.title(), "Password");
-    assert_eq!(kb.subtitle(), Some("Leave it empty for an open network"));
+    assert_eq!(kb.title(), "密码");
+    assert_eq!(kb.subtitle(), Some("开放网络无需填写密码"));
     assert_eq!(kb.text(), "");
     press(&mut a, Btn::Start);
     assert!(a.keyboard().is_none());
@@ -408,7 +408,7 @@ fn an_empty_network_name_stays_on_the_keyboard() {
     let _g = serial();
     let (_d, mut a, _log) = booted(Fake::demo());
     open_scan(&mut a);
-    select(&mut a, "Other Network");
+    select(&mut a, "其他网络");
     press(&mut a, Btn::A);
     press(&mut a, Btn::Start);
     assert_eq!(a.keyboard_for(), Some(&KeyboardFor::NetworkName));
@@ -441,22 +441,22 @@ fn the_network_page_shows_status_and_ip() {
     assert_eq!(
         lines(&a),
         vec![
-            line("Status", Some("Connected"), false, None),
-            line("IP Address", Some("192.168.1.42"), false, None),
-            line("Disconnect", None, false, None),
-            line("Auto-Join", Some("On"), false, None),
-            line("Forget", None, false, None),
+            line("状态", Some("已连接"), false, None),
+            line("IP地址", Some("192.168.1.42"), false, None),
+            line("断开", None, false, None),
+            line("自动连接", Some("开"), false, None),
+            line("忘记网络", None, false, None),
         ]
     );
-    select_row(&mut a, "Disconnect");
+    select_row(&mut a, "断开");
     press(&mut a, Btn::A);
     settle(&mut a);
-    assert_eq!(lines(&a)[0].value.as_deref(), Some("Not Connected"));
-    assert_eq!(lines(&a)[1].value.as_deref(), Some("None"));
-    assert_eq!(selected_label(&a), "Connect");
+    assert_eq!(lines(&a)[0].value.as_deref(), Some("未连接"));
+    assert_eq!(lines(&a)[1].value.as_deref(), Some("无"));
+    assert_eq!(selected_label(&a), "连接");
     press(&mut a, Btn::A);
     settle(&mut a);
-    assert_eq!(lines(&a)[0].value.as_deref(), Some("Connected"));
+    assert_eq!(lines(&a)[0].value.as_deref(), Some("已连接"));
 }
 
 #[test]
@@ -465,7 +465,7 @@ fn a_wrong_password_shows_on_status() {
     let (_d, mut a, _log) = booted(Fake::demo());
     open_scan(&mut a);
     enter(&mut a, "wrongpass");
-    assert_eq!(lines(&a)[0].value.as_deref(), Some("Wrong Password"));
+    assert_eq!(lines(&a)[0].value.as_deref(), Some("密码错误"));
 }
 
 #[test]
@@ -477,7 +477,7 @@ fn a_connected_networks_page_rows_are_exactly_the_five() {
     settle(&mut a);
     assert_eq!(
         labels(&a),
-        ["Status", "IP Address", "Disconnect", "Auto-Join", "Forget"]
+        ["状态", "IP地址", "断开", "自动连接", "忘记网络"]
     );
 }
 
@@ -487,14 +487,14 @@ fn auto_join_toggles() {
     let (_d, mut a, log) = booted(Fake::demo());
     join(&mut a, "Home", "password");
     on_home_page(&mut a);
-    select_row(&mut a, "Auto-Join");
-    for (btn, on) in [(Btn::A, "Off"), (Btn::Right, "On"), (Btn::Left, "Off")] {
+    select_row(&mut a, "自动连接");
+    for (btn, on) in [(Btn::A, "关"), (Btn::Right, "开"), (Btn::Left, "关")] {
         press(&mut a, btn);
         settle(&mut a);
-        assert_eq!(selected_label(&a), "Auto-Join");
+        assert_eq!(selected_label(&a), "自动连接");
         let value = lines(&a)
             .into_iter()
-            .find(|l| l.label == "Auto-Join")
+            .find(|l| l.label == "自动连接")
             .and_then(|l| l.value);
         assert_eq!(value.as_deref(), Some(on), "{btn:?}");
     }
@@ -508,9 +508,9 @@ fn forget_asks_first() {
     let (_d, mut a, log) = booted(Fake::demo());
     join(&mut a, "Home", "password");
     on_home_page(&mut a);
-    select_row(&mut a, "Forget");
+    select_row(&mut a, "忘记网络");
     press(&mut a, Btn::A);
-    assert_eq!(a.forget_prompt(), Some("Forget Home?".to_string()));
+    assert_eq!(a.forget_prompt(), Some("忘记Home？".to_string()));
     press(&mut a, Btn::B);
     assert_eq!(a.forget_prompt(), None);
     settle(&mut a);
@@ -553,7 +553,7 @@ fn closing_the_lid_drops_the_forget_prompt() {
     let (_d, mut a, log) = booted(Fake::demo());
     join(&mut a, "Home", "password");
     on_home_page(&mut a);
-    select_row(&mut a, "Forget");
+    select_row(&mut a, "忘记网络");
     press(&mut a, Btn::A);
     a.apply(Action::LidClose);
     a.apply(Action::LidOpen);
@@ -581,7 +581,7 @@ fn a_name_saved_twice_lists_once_and_forgets_both() {
     assert_ne!(selected_label(&a), "Home");
     select(&mut a, "Home");
     press(&mut a, Btn::A);
-    select_row(&mut a, "Forget");
+    select_row(&mut a, "忘记网络");
     press(&mut a, Btn::A);
     press(&mut a, Btn::A);
     settle(&mut a);
@@ -598,11 +598,11 @@ fn disconnect_is_hidden_when_wifi_is_off() {
     settle(&mut a);
     let screen = a.network_screen().unwrap();
     assert_eq!(screen.lines, vec![line("Home", None, false, None)]);
-    assert_eq!(screen.message, Some("Turn on Wi-Fi to see networks"));
+    assert_eq!(screen.message, Some("打开Wi-Fi后可查看网络"));
     press(&mut a, Btn::A);
     assert!(matches!(a.phase(), Phase::NetworkPage { .. }));
-    assert_eq!(labels(&a), ["Status", "IP Address", "Auto-Join", "Forget"]);
-    assert_eq!(lines(&a)[0].value.as_deref(), Some("Wi-Fi Off"));
+    assert_eq!(labels(&a), ["状态", "IP地址", "自动连接", "忘记网络"]);
+    assert_eq!(lines(&a)[0].value.as_deref(), Some("Wi-Fi已关闭"));
     assert!(!a.wifi().held);
 }
 
@@ -616,7 +616,7 @@ fn with_wifi_off_and_nothing_saved_the_list_only_says_so() {
     settle(&mut a);
     let screen = a.network_screen().unwrap();
     assert!(screen.lines.is_empty());
-    assert_eq!(screen.message, Some("Turn on Wi-Fi to see networks"));
+    assert_eq!(screen.message, Some("打开Wi-Fi后可查看网络"));
     press(&mut a, Btn::A);
     assert!(matches!(a.phase(), Phase::Networks { .. }));
     assert!(a.keyboard().is_none());
@@ -697,7 +697,7 @@ fn forgetting_the_only_network_releases_the_radio_on_the_shelf() {
     let (_d, mut a, _log) = booted(Fake::demo());
     join(&mut a, "Home", "password");
     on_home_page(&mut a);
-    select_row(&mut a, "Forget");
+    select_row(&mut a, "忘记网络");
     press(&mut a, Btn::A);
     press(&mut a, Btn::A);
     settle(&mut a);
@@ -829,10 +829,10 @@ fn the_scan_screen_says_so_until_the_results_land() {
     assert!(s.lines.is_empty(), "{:?}", s.lines);
     assert_eq!(s.message, Some(SCANNING_MESSAGE));
     assert_eq!(a.network_action(), None);
-    assert_eq!(a.network_back(), "Cancel");
+    assert_eq!(a.network_back(), "取消");
     settle(&mut a);
     assert_eq!(a.network_screen().unwrap().message, None);
-    assert_eq!(a.network_back(), "Back");
+    assert_eq!(a.network_back(), "返回");
 }
 
 #[test]
@@ -930,9 +930,9 @@ fn a_new_network_with_a_wrong_password_is_not_saved() {
     assert!(logged(&log, "forget 0"), "{log:?}");
     let rows = page_labels(&a);
     assert!(rows.iter().any(|r| r == ENTER_PASSWORD), "{rows:?}");
-    assert!(!rows.iter().any(|r| r == "Forget"), "{rows:?}");
-    assert!(!rows.iter().any(|r| r == "Auto-Join"), "{rows:?}");
-    assert_eq!(lines(&a)[0].value.as_deref(), Some("Wrong Password"));
+    assert!(!rows.iter().any(|r| r == "忘记网络"), "{rows:?}");
+    assert!(!rows.iter().any(|r| r == "自动连接"), "{rows:?}");
+    assert_eq!(lines(&a)[0].value.as_deref(), Some("密码错误"));
 }
 
 #[test]
@@ -943,8 +943,8 @@ fn entering_the_right_password_joins_and_saves_once() {
     enter(&mut a, "wrongpass");
     retype(&mut a, "password");
     assert_eq!(a.wifi().saved.len(), 1);
-    assert_eq!(lines(&a)[0].value.as_deref(), Some("Connected"));
-    assert!(page_labels(&a).iter().any(|r| r == "Forget"));
+    assert_eq!(lines(&a)[0].value.as_deref(), Some("已连接"));
+    assert!(page_labels(&a).iter().any(|r| r == "忘记网络"));
 }
 
 fn with_old_password() -> (TempDir, App, Log) {
@@ -966,7 +966,7 @@ fn a_saved_network_that_rejects_its_password_stays_saved() {
     assert_eq!(a.wifi().saved.len(), 1);
     let rows = page_labels(&a);
     assert!(rows.iter().any(|r| r == ENTER_PASSWORD), "{rows:?}");
-    assert!(rows.iter().any(|r| r == "Forget"), "{rows:?}");
+    assert!(rows.iter().any(|r| r == "忘记网络"), "{rows:?}");
 }
 
 #[test]
@@ -975,7 +975,7 @@ fn a_new_password_replaces_the_old_one() {
     let (_d, mut a, _log) = with_old_password();
     retype(&mut a, "password");
     assert_eq!(a.wifi().saved.len(), 1);
-    assert_eq!(lines(&a)[0].value.as_deref(), Some("Connected"));
+    assert_eq!(lines(&a)[0].value.as_deref(), Some("已连接"));
 }
 
 #[test]
@@ -984,7 +984,7 @@ fn a_second_wrong_password_keeps_the_saved_network() {
     let (_d, mut a, _log) = with_old_password();
     retype(&mut a, "stillwrong");
     assert_eq!(a.wifi().saved.len(), 1);
-    assert_eq!(lines(&a)[0].value.as_deref(), Some("Wrong Password"));
+    assert_eq!(lines(&a)[0].value.as_deref(), Some("密码错误"));
 }
 
 fn hold(a: &mut App, btn: Btn, ms: u64) {

@@ -44,33 +44,33 @@ pub struct StickerFields<'a> {
 }
 
 pub const CREDITS: [&str; 12] = [
-    "THE EXQUISITE SKEUOMORPHIC",
-    "ARTWORK MADE BY MARKUS.",
-    "EMULATION POWERED BY MGBA,",
-    "GPSP AND GAMBATTE.",
-    "UNDERLYING OS IS",
-    "BASEOS BY PVAIBHAV. TYPE IS",
-    "OPEN SANS AND NERD FONTS",
-    "SYMBOLS BY RYAN L MCINTYRE.",
-    "THE PANEL MASK IS DERIVED",
-    "FROM GIGAHERZ'S LCD3X. THE",
-    "CART SOUNDS ARE MY CHILDHOOD",
-    "GAMEBOY.",
+    "精美的拟物风格美术",
+    "由MARKUS创作。",
+    "模拟由MGBA、GPSP",
+    "和GAMBATTE驱动。",
+    "底层系统采用",
+    "PVAIBHAV的BASEOS。",
+    "字体采用寒蝉全圆体",
+    "与NERD FONTS符号字体。",
+    "符号由RYAN L MCINTYRE提供。",
+    "屏幕遮罩源自",
+    "GIGAHERZ的LCD3X。",
+    "卡带音效来自童年的GAME BOY。",
 ];
 
-pub const ORIGIN: [&str; 2] = ["S/LOT-USA", "MADE IN ITHACA"];
+pub const ORIGIN: [&str; 2] = ["S/LOT-USA", "伊萨卡制造"];
 
 pub const COPYRIGHT: &str = "\u{a9} 2026 BRANDON T. KOWALSKI";
 
-pub const HOME: &str = "SEE README.";
+pub const HOME: &str = "详见README。";
 
 pub fn head_rows(f: &StickerFields) -> [String; 3] {
     [
-        "MODEL NO. AGS-102".into(),
-        format!("INPUT : 5V{DC}1.5A"),
+        "型号：AGS-102".into(),
+        format!("输入：5V{DC}1.5A"),
         match f.battery {
-            Some(p) => format!("BATTERY : LI-ION ({p}%)"),
-            None => "BATTERY : LI-ION".to_string(),
+            Some(p) => format!("电池：锂离子（{p}%）"),
+            None => "电池：锂离子".to_string(),
         },
     ]
 }
@@ -384,7 +384,7 @@ const DS_PANEL_H: u32 = 122;
 const DS_CASED_TRACKING: f32 = 0.3;
 
 pub const DS_CREDITS: &str = "The exquisite skeuomorphic artwork made by Markus. \
-Emulation powered by DSperate, mGBA, gpSP and Gambatte. Type is Open Sans and Nerd \
+Emulation powered by DSperate, mGBA, gpSP and Gambatte. Type is ChillRoundF and Nerd \
 Fonts Symbols by Ryan L McIntyre. The panel mask is derived from Gigaherz's LCD3x. \
 The cart sounds are my childhood Game\u{a0}Boy and my adulthood DS\u{a0}Lite.";
 

@@ -482,10 +482,7 @@ fn the_prompt_words_one_shot_and_many() {
     press(&mut a, slot_input::Btn::Y);
     assert_eq!(
         a.delete_shot_lines(),
-        Some((
-            "Delete this screenshot?".to_string(),
-            "It cannot be brought back."
-        ))
+        Some(("删除这张截图？".to_string(), "删除后无法恢复。"))
     );
     press(&mut a, slot_input::Btn::B);
     press(&mut a, slot_input::Btn::Select);
@@ -493,10 +490,7 @@ fn the_prompt_words_one_shot_and_many() {
     press(&mut a, slot_input::Btn::Y);
     assert_eq!(
         a.delete_shot_lines(),
-        Some((
-            "Delete 3 screenshots?".to_string(),
-            "They cannot be brought back."
-        ))
+        Some(("删除3张截图？".to_string(), "删除后无法恢复。"))
     );
 }
 

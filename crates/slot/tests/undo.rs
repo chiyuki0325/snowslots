@@ -105,7 +105,7 @@ fn a_reset_starts_the_game_over_and_undoing_it_puts_the_game_back() {
     let before = core.bytes();
     a.apply_at(Action::Reset, 1_000);
     assert_eq!(core.bytes(), start);
-    assert_eq!(a.undo_label(), Some("undo reset"));
+    assert_eq!(a.undo_label(), Some("撤销重置"));
     a.undo(2_000);
     assert_eq!(core.bytes(), before);
 }
@@ -135,9 +135,9 @@ fn the_label_names_what_will_be_undone() {
     let d = tmp_root_with_carts(&["Emerald"]);
     let mut a = app_playing_in(d.path(), "Emerald");
     a.apply_at(Action::SaveState, 1_000);
-    assert_eq!(a.undo_label(), Some("undo save"));
+    assert_eq!(a.undo_label(), Some("撤销保存"));
     a.apply_at(Action::LoadState, 2_000);
-    assert_eq!(a.undo_label(), Some("undo load"));
+    assert_eq!(a.undo_label(), Some("撤销读取"));
 }
 
 #[test]

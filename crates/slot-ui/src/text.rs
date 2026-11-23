@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 
 use fontdue::{Font, FontSettings};
 
-const LABEL_TTF: &[u8] = include_bytes!("../assets/label.ttf");
+const LABEL_TTF: &[u8] = include_bytes!("../assets/ChillRoundF-Regular.ttf");
 
 pub struct Layout {
     pub lines: Vec<String>,

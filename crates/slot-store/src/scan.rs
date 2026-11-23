@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -57,19 +58,24 @@ impl From<std::io::Error> for StoreError {
 }
 
 pub fn scan(root: &Path) -> Result<Vec<Cart>, StoreError> {
-    scan_of(root, &Platform::ALL)
+    Ok(scan_report(root).carts)
 }
 
 pub fn scan_platform(root: &Path, platform: Platform) -> Result<Vec<Cart>, StoreError> {
-    scan_of(root, &[platform])
+    Ok(scan_of(root, &[platform]).carts)
 }
 
-fn scan_of(root: &Path, platforms: &[Platform]) -> Result<Vec<Cart>, StoreError> {
-    let read = |file: &str| std::fs::read_to_string(root.join(file)).unwrap_or_default();
-    let shells = crate::cart_shell::layered(
-        &read(crate::CART_SHELL_FILE),
-        &read(crate::LABELS_SHELL_FILE),
-    );
+pub struct LibraryScan {
+    pub carts: Vec<Cart>,
+    pub complete: bool,
+}
+
+pub fn scan_report(root: &Path) -> LibraryScan {
+    scan_of(root, &Platform::ALL)
+}
+
+fn scan_of(root: &Path, platforms: &[Platform]) -> LibraryScan {
+    let mut complete = true;
     let mut carts = Vec::new();
     for platform in platforms.iter().copied() {
         let dir = root.join("Games").join(platform.dir_name());
@@ -78,42 +84,83 @@ fn scan_of(root: &Path, platforms: &[Platform]) -> Result<Vec<Cart>, StoreError>
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
             Err(e) => {
                 eprintln!("slot: scan: {}: {e}", dir.display());
+                complete = false;
                 continue;
             }
         };
         let labels_dir = root.join("Labels").join(platform.dir_name());
-        let labels = listing(&labels_dir);
+        let mut labels = HashMap::new();
+        match std::fs::read_dir(&labels_dir) {
+            Ok(entries) => {
+                for entry in entries {
+                    let Ok(entry) = entry else {
+                        complete = false;
+                        continue;
+                    };
+                    if !is_hidden(&entry.path()) && is_file(&entry, &mut complete) {
+                        if let Some(name) = decode_filename(&entry.file_name()) {
+                            labels.insert(name.to_lowercase(), entry.path());
+                        }
+                    }
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => complete = false,
+        }
         for entry in entries {
             let Ok(entry) = entry else {
+                complete = false;
                 continue;
             };
             let rom = entry.path();
-            if is_hidden(&rom) || !platform.accepts(&rom) || !is_file(&entry) {
+            if is_hidden(&rom) || !platform.accepts(&rom) || !is_file(&entry, &mut complete) {
                 continue;
             }
-            let Some(stem) = rom.file_stem().and_then(|s| s.to_str()) else {
+            let Some(stem) = rom.file_stem().and_then(decode_filename) else {
                 continue;
             };
-            let label = labels
-                .get(&format!("{stem}.png").to_lowercase())
-                .map(|name| labels_dir.join(name));
+            let label = labels.get(&format!("{stem}.png").to_lowercase()).cloned();
             carts.push(Cart {
                 platform,
                 stem: stem.to_string(),
                 title: String::new(),
                 code: String::new(),
-                shell: shells.get(&crate::cart_shell::key(stem)).copied(),
+                shell: None,
                 tags: Vec::new(),
                 label,
                 rom,
             });
         }
     }
+    if prepare_library(root, &mut carts).is_err() {
+        complete = false;
+    }
+    LibraryScan { carts, complete }
+}
+
+pub(crate) fn prepare_library(root: &Path, carts: &mut [Cart]) -> std::io::Result<()> {
+    let read = |file: &str| match std::fs::read_to_string(root.join(file)) {
+        Ok(text) => Ok(text),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+        Err(error) => Err(error),
+    };
+    let system = read(crate::CART_SHELL_FILE);
+    let labels = read(crate::LABELS_SHELL_FILE);
+    let shells = crate::cart_shell::layered(
+        system.as_deref().unwrap_or_default(),
+        labels.as_deref().unwrap_or_default(),
+    );
+    for cart in carts.iter_mut() {
+        cart.shell = shells.get(&crate::cart_shell::key(&cart.stem)).copied();
+        cart.tags.clear();
+    }
     carts.sort_by(|a, b| {
         (a.platform as u8, sort_key(&a.stem)).cmp(&(b.platform as u8, sort_key(&b.stem)))
     });
-    tell_twins_apart(&mut carts);
-    Ok(carts)
+    tell_twins_apart(carts);
+    system?;
+    labels?;
+    Ok(())
 }
 
 fn tell_twins_apart(carts: &mut [Cart]) {
@@ -147,11 +194,20 @@ pub fn listing(dir: &Path) -> HashMap<String, String> {
         .collect()
 }
 
-fn is_file(entry: &std::fs::DirEntry) -> bool {
+fn is_file(entry: &std::fs::DirEntry, complete: &mut bool) -> bool {
     match entry.file_type() {
-        Ok(t) if t.is_symlink() => entry.path().is_file(),
+        Ok(t) if t.is_symlink() => match entry.path().metadata() {
+            Ok(meta) => meta.is_file(),
+            Err(_) => {
+                *complete = false;
+                false
+            }
+        },
         Ok(t) => t.is_file(),
-        Err(_) => false,
+        Err(_) => {
+            *complete = false;
+            false
+        }
     }
 }
 
@@ -180,8 +236,88 @@ pub fn initial(stem: &str) -> char {
 
 pub fn is_hidden(p: &Path) -> bool {
     p.file_name()
-        .and_then(|n| n.to_str())
-        .is_some_and(|n| n.starts_with('.'))
+        .is_some_and(|n| n.as_encoded_bytes().starts_with(b"."))
+}
+
+pub(crate) fn decode_filename(name: &OsStr) -> Option<String> {
+    #[cfg(unix)]
+    let bytes = {
+        use std::os::unix::ffi::OsStrExt;
+        name.as_bytes()
+    };
+    #[cfg(not(unix))]
+    let bytes = name.to_str()?.as_bytes();
+    let decoded = match std::str::from_utf8(bytes) {
+        Ok(name) => name.to_string(),
+        Err(_) => encoding_rs::GB18030
+            .decode_without_bom_handling_and_without_replacement(bytes)?
+            .into_owned(),
+    };
+    Some(recover_utf8_mojibake(&decoded).unwrap_or(decoded))
+}
+
+pub fn find_file_by_stem(dir: &Path, stem: &str, extension: &str) -> Option<PathBuf> {
+    let direct = dir.join(format!("{stem}.{extension}"));
+    if direct.is_file() {
+        return Some(direct);
+    }
+    std::fs::read_dir(dir)
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .find(|path| {
+            !is_hidden(path)
+                && path.is_file()
+                && path
+                    .extension()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|candidate| candidate.eq_ignore_ascii_case(extension))
+                && path
+                    .file_stem()
+                    .and_then(decode_filename)
+                    .is_some_and(|candidate| candidate == stem)
+        })
+}
+
+pub(crate) fn find_dir_by_name(dir: &Path, name: &str) -> Option<PathBuf> {
+    let direct = dir.join(name);
+    if direct.is_dir() {
+        return Some(direct);
+    }
+    std::fs::read_dir(dir)
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .find(|path| {
+            !is_hidden(path)
+                && path.is_dir()
+                && path
+                    .file_name()
+                    .and_then(decode_filename)
+                    .is_some_and(|candidate| candidate == name)
+        })
+}
+
+fn recover_utf8_mojibake(name: &str) -> Option<String> {
+    if name.chars().any(is_cjk) {
+        return None;
+    }
+    let bytes: Option<Vec<u8>> = name
+        .chars()
+        .map(|character| u8::try_from(character as u32).ok())
+        .collect();
+    let recovered = String::from_utf8(bytes?).ok()?;
+    recovered.chars().any(is_cjk).then_some(recovered)
+}
+
+fn is_cjk(character: char) -> bool {
+    matches!(
+        character,
+        '\u{3400}'..='\u{4dbf}'
+            | '\u{4e00}'..='\u{9fff}'
+            | '\u{f900}'..='\u{faff}'
+            | '\u{20000}'..='\u{2fa1f}'
+    )
 }
 
 pub fn clean_label(stem: &str) -> String {

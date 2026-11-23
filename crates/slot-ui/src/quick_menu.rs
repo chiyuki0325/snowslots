@@ -687,73 +687,73 @@ impl QuickRow {
 
     pub fn label(self) -> &'static str {
         match self {
-            QuickRow::FastForward => "Fast Forward",
-            QuickRow::FastForwardSound => "Fast Forward Sound",
-            QuickRow::Screen => "Screen",
-            QuickRow::Rumble => "Rumble",
-            QuickRow::LeftStick => "Left Stick as D-Pad",
-            QuickRow::ScreenGeneral => "General",
-            QuickRow::Brightness | QuickRow::PlayBrightness => "Brightness",
-            QuickRow::BlueLight | QuickRow::PlayBlueLight => "Blue Light",
-            QuickRow::Saturation | QuickRow::PlaySaturation => "Saturation",
-            QuickRow::Contrast | QuickRow::PlayContrast => "Contrast",
-            QuickRow::DateTime => "Date & Time",
-            QuickRow::About => "About",
-            QuickRow::GbaShader => "Shader",
-            QuickRow::GbShader => "Shader",
-            QuickRow::GbcShader => "Shader",
-            QuickRow::GbaColourCorrection => "Color Correction",
-            QuickRow::GbColourCorrection => "Color Correction",
-            QuickRow::GbcColourCorrection => "Color Correction",
-            QuickRow::Game => "Gameplay",
-            QuickRow::ResumeInsert => "Resume on Insert",
-            QuickRow::ResumePowerOn => "Resume on Power On",
-            QuickRow::Rewind => "Rewind",
-            QuickRow::GbPalette => "Palette",
-            QuickRow::Theme => "Theme",
-            QuickRow::Wallpaper => "Wallpaper",
-            QuickRow::Recents => "Recents",
-            QuickRow::ShelfMode => "Shelf Mode",
-            QuickRow::ShowTitles => "Game Titles",
-            QuickRow::WallpaperTint => "Wallpaper Tint",
-            QuickRow::Resume => "Resume",
-            QuickRow::UndoSave => "Undo Save",
-            QuickRow::UndoLoad => "Undo Load",
-            QuickRow::UndoReset => "Undo Reset",
-            QuickRow::States => "States",
-            QuickRow::Screenshots => "Screenshots",
-            QuickRow::Guide => "Guide",
-            QuickRow::Settings => "Settings",
-            QuickRow::ExitGame => "Exit Game",
-            QuickRow::General => "Shelf",
-            QuickRow::System => "System",
-            QuickRow::BatteryDisplay => "Battery Display",
-            QuickRow::LidOff => "Lid Power Off",
-            QuickRow::KidMode => "Kid Mode",
-            QuickRow::KidShelf => "Kid Shelf",
-            QuickRow::FetchArt => "Fetch Missing Art",
+            QuickRow::FastForward => "快速前进",
+            QuickRow::FastForwardSound => "快进声音",
+            QuickRow::Screen => "屏幕",
+            QuickRow::Rumble => "震动",
+            QuickRow::LeftStick => "左摇杆模拟方向键",
+            QuickRow::ScreenGeneral => "通用",
+            QuickRow::Brightness | QuickRow::PlayBrightness => "亮度",
+            QuickRow::BlueLight | QuickRow::PlayBlueLight => "蓝光",
+            QuickRow::Saturation | QuickRow::PlaySaturation => "饱和度",
+            QuickRow::Contrast | QuickRow::PlayContrast => "对比度",
+            QuickRow::DateTime => "日期与时间",
+            QuickRow::About => "关于",
+            QuickRow::GbaShader => "滤镜",
+            QuickRow::GbShader => "滤镜",
+            QuickRow::GbcShader => "滤镜",
+            QuickRow::GbaColourCorrection => "色彩校正",
+            QuickRow::GbColourCorrection => "色彩校正",
+            QuickRow::GbcColourCorrection => "色彩校正",
+            QuickRow::Game => "游戏",
+            QuickRow::ResumeInsert => "插卡时继续游戏",
+            QuickRow::ResumePowerOn => "开机时继续游戏",
+            QuickRow::Rewind => "倒带",
+            QuickRow::GbPalette => "调色板",
+            QuickRow::Theme => "主题",
+            QuickRow::Wallpaper => "壁纸",
+            QuickRow::Recents => "最近游戏",
+            QuickRow::ShelfMode => "游戏架模式",
+            QuickRow::ShowTitles => "游戏标题",
+            QuickRow::WallpaperTint => "壁纸着色",
+            QuickRow::Resume => "继续游戏",
+            QuickRow::UndoSave => "撤销保存",
+            QuickRow::UndoLoad => "撤销读取",
+            QuickRow::UndoReset => "撤销重置",
+            QuickRow::States => "即时存档",
+            QuickRow::Screenshots => "截图",
+            QuickRow::Guide => "攻略",
+            QuickRow::Settings => "设置",
+            QuickRow::ExitGame => "退出游戏",
+            QuickRow::General => "游戏架",
+            QuickRow::System => "系统",
+            QuickRow::BatteryDisplay => "电量显示",
+            QuickRow::LidOff => "合盖后关机",
+            QuickRow::KidMode => "儿童模式",
+            QuickRow::KidShelf => "儿童游戏架",
+            QuickRow::FetchArt => "下载缺失封面",
             #[cfg(feature = "nds")]
-            QuickRow::FetchBoxArt => "Fetch Box Art",
-            QuickRow::Network => "Tools",
+            QuickRow::FetchBoxArt => "下载包装封面",
+            QuickRow::Network => "工具",
             QuickRow::Wifi | QuickRow::WifiPower => "Wi-Fi",
-            QuickRow::Networks => "Network",
-            QuickRow::CheckUpdates => "Check for Updates",
+            QuickRow::Networks => "网络",
+            QuickRow::CheckUpdates => "检查更新",
             QuickRow::Server => "Gamebit",
-            QuickRow::Nickname => "Nickname",
+            QuickRow::Nickname => "昵称",
             QuickRow::Romm => "RomM",
-            QuickRow::RommProtocol => "Protocol",
-            QuickRow::RommServer | QuickRow::RommPairedServer => "Server",
-            QuickRow::RommPort => "Port",
-            QuickRow::RommSelfSigned => "Accept Self-Signed",
-            QuickRow::RommPair => "Pair",
-            QuickRow::RommStatus => "Status",
-            QuickRow::RommDisconnect => "Disconnect",
-            QuickRow::Controls => "Controls",
-            QuickRow::ControlsShelf => "Shelf",
-            QuickRow::ControlsCollections => "Collections",
-            QuickRow::ControlsInGame => "In-Game",
-            QuickRow::PlayControls => "Controls",
-            QuickRow::Shortcuts => "Shortcuts",
+            QuickRow::RommProtocol => "协议",
+            QuickRow::RommServer | QuickRow::RommPairedServer => "服务器",
+            QuickRow::RommPort => "端口",
+            QuickRow::RommSelfSigned => "接受自签名证书",
+            QuickRow::RommPair => "配对",
+            QuickRow::RommStatus => "状态",
+            QuickRow::RommDisconnect => "断开连接",
+            QuickRow::Controls => "按键",
+            QuickRow::ControlsShelf => "游戏架",
+            QuickRow::ControlsCollections => "合集",
+            QuickRow::ControlsInGame => "游戏内",
+            QuickRow::PlayControls => "按键",
+            QuickRow::Shortcuts => "快捷键",
             QuickRow::GameUp
             | QuickRow::GameDown
             | QuickRow::GameLeft
@@ -791,30 +791,28 @@ impl QuickRow {
             | QuickRow::ShelfForget
             | QuickRow::CollPrev
             | QuickRow::CollNext => self.carousel_action().map_or("", CarouselAction::label),
-            QuickRow::PlayScreen => "Screen",
-            QuickRow::PlayGameplay => "Gameplay",
-            QuickRow::Shader => "Shader",
-            QuickRow::ColourCorrection => "Color Correction",
-            QuickRow::Palette => "Palette",
+            QuickRow::PlayScreen => "屏幕",
+            QuickRow::PlayGameplay => "游戏",
+            QuickRow::Shader => "滤镜",
+            QuickRow::ColourCorrection => "色彩校正",
+            QuickRow::Palette => "调色板",
             QuickRow::ScreenGba => "Game Boy Advance",
             QuickRow::ScreenGbc => "Game Boy Color",
             QuickRow::ScreenGb => "Game Boy",
-            QuickRow::GbBezel => "Bezel",
-            QuickRow::GbcBezel => "Bezel",
-            QuickRow::GbaScale | QuickRow::GbScale | QuickRow::GbcScale | QuickRow::Scale => {
-                "Scale"
-            }
-            QuickRow::GbStretch | QuickRow::GbcStretch | QuickRow::Stretch => "Stretch",
+            QuickRow::GbBezel => "边框",
+            QuickRow::GbcBezel => "边框",
+            QuickRow::GbaScale | QuickRow::GbScale | QuickRow::GbcScale | QuickRow::Scale => "缩放",
+            QuickRow::GbStretch | QuickRow::GbcStretch | QuickRow::Stretch => "拉伸",
             QuickRow::GbaBlending
             | QuickRow::GbcBlending
             | QuickRow::GbBlending
-            | QuickRow::Blending => "Frame Blending",
-            QuickRow::GbaBezel => "Bezel",
-            QuickRow::Bezel => "Bezel",
+            | QuickRow::Blending => "帧混合",
+            QuickRow::GbaBezel => "边框",
+            QuickRow::Bezel => "边框",
             QuickRow::GbaOverlay
             | QuickRow::GbOverlay
             | QuickRow::GbcOverlay
-            | QuickRow::Overlay => "Overlay",
+            | QuickRow::Overlay => "叠加层",
         }
     }
 
@@ -1100,33 +1098,33 @@ impl QuickValue {
             QuickValue::Speed3 => "3×",
             QuickValue::Speed4 => "4×",
             QuickValue::Speed6 => "6×",
-            QuickValue::On => "On",
-            QuickValue::Off => "Off",
+            QuickValue::On => "开",
+            QuickValue::Off => "关",
             QuickValue::Lcd3x => "LCD",
-            QuickValue::Grid => "Grid",
-            QuickValue::Dot => "Dot",
+            QuickValue::Grid => "网格",
+            QuickValue::Dot => "点阵",
             QuickValue::Simpletex => "Simpletex",
             QuickValue::Shimmerless => "Shimmerless",
-            QuickValue::Dark => "Dark",
-            QuickValue::Light => "Light",
-            QuickValue::Show => "Show",
-            QuickValue::Hide => "Hide",
-            QuickValue::All => "All",
-            QuickValue::Collections => "Collections",
-            QuickValue::OneShelf => "One Shelf",
-            QuickValue::Shelves => "Shelves",
-            QuickValue::Both => "Both",
-            QuickValue::Icon => "Icon",
-            QuickValue::Percentage => "Percentage",
+            QuickValue::Dark => "深色",
+            QuickValue::Light => "浅色",
+            QuickValue::Show => "显示",
+            QuickValue::Hide => "隐藏",
+            QuickValue::All => "全部",
+            QuickValue::Collections => "合集",
+            QuickValue::OneShelf => "单个游戏架",
+            QuickValue::Shelves => "游戏架",
+            QuickValue::Both => "图标与百分比",
+            QuickValue::Icon => "图标",
+            QuickValue::Percentage => "百分比",
             QuickValue::Low => "25%",
             QuickValue::Medium => "45%",
             QuickValue::High => "65%",
-            QuickValue::Min1 => "1 min",
-            QuickValue::Min3 => "3 min",
-            QuickValue::Min5 => "5 min",
-            QuickValue::Min10 => "10 min",
-            QuickValue::Min15 => "15 min",
-            QuickValue::Min30 => "30 min",
+            QuickValue::Min1 => "1分钟",
+            QuickValue::Min3 => "3分钟",
+            QuickValue::Min5 => "5分钟",
+            QuickValue::Min10 => "10分钟",
+            QuickValue::Min15 => "15分钟",
+            QuickValue::Min30 => "30分钟",
             QuickValue::Level0 => "0",
             QuickValue::Level1 => "1",
             QuickValue::Level2 => "2",
@@ -1143,13 +1141,13 @@ impl QuickValue {
             QuickValue::Level13 => "13",
             QuickValue::Level14 => "14",
             QuickValue::Level15 => "15",
-            QuickValue::SpFrame => "SP Screen",
-            QuickValue::Integer => "Integer",
-            QuickValue::Fit => "Fit",
-            QuickValue::Classic => "Classic",
-            QuickValue::FullScreen => "Full Screen",
-            QuickValue::Mix => "Mix",
-            QuickValue::Ghosting => "Ghosting",
+            QuickValue::SpFrame => "SP屏幕",
+            QuickValue::Integer => "整数倍",
+            QuickValue::Fit => "适应屏幕",
+            QuickValue::Classic => "经典",
+            QuickValue::FullScreen => "全屏",
+            QuickValue::Mix => "混合",
+            QuickValue::Ghosting => "残影",
             QuickValue::Https => "HTTPS",
             QuickValue::Http => "HTTP",
         }
@@ -1328,40 +1326,40 @@ pub(crate) fn quick_text_face(label: &str, colour: [u8; 3]) -> UndoFace {
 pub fn quick_legend_faces(ink: [u8; 3]) -> [UndoFace; 8] {
     let hint = Some(ink);
     [
-        with_hint(button_face(ButtonLegend::B), "Back", hint, true),
+        with_hint(button_face(ButtonLegend::B), "返回", hint, true),
         with_hint(
             button_pair(ButtonLegend::Left, ButtonLegend::Right),
-            "Change",
+            "更改",
             hint,
             false,
         ),
-        with_hint(button_face(ButtonLegend::A), "Open", hint, false),
-        with_hint(button_face(ButtonLegend::B), "Resume", hint, true),
-        with_hint(button_face(ButtonLegend::X), "Restart", hint, false),
-        with_hint(button_face(ButtonLegend::A), "Set", hint, false),
-        with_hint(button_face(ButtonLegend::X), "Clear", hint, false),
-        with_hint(button_face(ButtonLegend::Y), "Reset All", hint, true),
+        with_hint(button_face(ButtonLegend::A), "打开", hint, false),
+        with_hint(button_face(ButtonLegend::B), "继续", hint, true),
+        with_hint(button_face(ButtonLegend::X), "重启", hint, false),
+        with_hint(button_face(ButtonLegend::A), "设置", hint, false),
+        with_hint(button_face(ButtonLegend::X), "清除", hint, false),
+        with_hint(button_face(ButtonLegend::Y), "全部重置", hint, true),
     ]
 }
 
 pub fn picking_legend_faces(ink: [u8; 3]) -> [UndoFace; 8] {
     let hint = Some(ink);
     [
-        with_hint(button_face(ButtonLegend::B), "Cancel", hint, true),
-        with_hint(button_face(ButtonLegend::A), "Select", hint, false),
-        with_hint(button_face(ButtonLegend::A), "Unselect", hint, false),
-        with_hint(button_face(ButtonLegend::B), "Back", hint, true),
-        with_hint(button_face(ButtonLegend::A), "Add", hint, false),
-        with_hint(button_face(ButtonLegend::B), "Keep", hint, true),
-        with_hint(button_face(ButtonLegend::A), "Remove", hint, false),
-        with_hint(button_face(ButtonLegend::A), "Drop", hint, false),
+        with_hint(button_face(ButtonLegend::B), "取消", hint, true),
+        with_hint(button_face(ButtonLegend::A), "选择", hint, false),
+        with_hint(button_face(ButtonLegend::A), "取消选择", hint, false),
+        with_hint(button_face(ButtonLegend::B), "返回", hint, true),
+        with_hint(button_face(ButtonLegend::A), "添加", hint, false),
+        with_hint(button_face(ButtonLegend::B), "保留", hint, true),
+        with_hint(button_face(ButtonLegend::A), "移除", hint, false),
+        with_hint(button_face(ButtonLegend::A), "放下", hint, false),
     ]
 }
 
 pub fn add_legend(ink: [u8; 3], n: usize) -> UndoFace {
     with_hint(
         button_face(ButtonLegend::Start),
-        &format!("Add {n}"),
+        &format!("添加{n}项"),
         Some(ink),
         false,
     )
@@ -1409,14 +1407,14 @@ pub fn quick_description_face(lines: &[&str]) -> UndoFace {
 pub fn core_button_legends(ink: [u8; 3]) -> Vec<UndoFace> {
     let hint = Some(ink);
     vec![
-        with_hint(button_face(ButtonLegend::B), "Cancel", hint, true),
+        with_hint(button_face(ButtonLegend::B), "取消", hint, true),
         with_hint(
             button_pair(ButtonLegend::Left, ButtonLegend::Right),
-            "Swap",
+            "切换",
             hint,
             true,
         ),
-        with_hint(button_face(ButtonLegend::A), "Choose", hint, false),
+        with_hint(button_face(ButtonLegend::A), "选择", hint, false),
     ]
 }
 
@@ -1424,66 +1422,66 @@ pub fn core_button_legends(ink: [u8; 3]) -> Vec<UndoFace> {
 pub fn link_button_legends(ink: [u8; 3]) -> Vec<UndoFace> {
     let hint = Some(ink);
     vec![
-        with_hint(button_face(ButtonLegend::B), "Cancel", hint, true),
-        with_hint(button_face(ButtonLegend::Select), "Mode", hint, true),
+        with_hint(button_face(ButtonLegend::B), "取消", hint, true),
+        with_hint(button_face(ButtonLegend::Select), "模式", hint, true),
         with_hint(
             button_pair(ButtonLegend::Left, ButtonLegend::Right),
-            "Swap",
+            "切换",
             hint,
             false,
         ),
-        with_hint(button_face(ButtonLegend::A), "Link", hint, false),
-        with_hint(button_face(ButtonLegend::A), "OK", hint, false),
-        with_hint(button_face(ButtonLegend::B), "Back", hint, true),
-        with_hint(button_face(ButtonLegend::A), "End Link", hint, false),
+        with_hint(button_face(ButtonLegend::A), "联机", hint, false),
+        with_hint(button_face(ButtonLegend::A), "确定", hint, false),
+        with_hint(button_face(ButtonLegend::B), "返回", hint, true),
+        with_hint(button_face(ButtonLegend::A), "结束联机", hint, false),
     ]
 }
 
 pub fn clock_legend_faces(ink: [u8; 3]) -> [UndoFace; 6] {
     let hint = Some(ink);
     [
-        with_hint(button_face(ButtonLegend::A), "Done", hint, false),
-        with_hint(up_down_pair(), "Change", hint, false),
+        with_hint(button_face(ButtonLegend::A), "完成", hint, false),
+        with_hint(up_down_pair(), "更改", hint, false),
         with_hint(
             button_pair(ButtonLegend::Left, ButtonLegend::Right),
-            "Page",
+            "翻页",
             hint,
             false,
         ),
-        with_hint(button_face(ButtonLegend::A), "Change", hint, false),
-        with_hint(button_face(ButtonLegend::A), "Select", hint, false),
-        with_hint(button_face(ButtonLegend::B), "Done", hint, true),
+        with_hint(button_face(ButtonLegend::A), "更改", hint, false),
+        with_hint(button_face(ButtonLegend::A), "选择", hint, false),
+        with_hint(button_face(ButtonLegend::B), "完成", hint, true),
     ]
 }
 
 pub fn repair_legends(ink: [u8; 3]) -> [UndoFace; 2] {
-    prompt_legends(ink, "Not now", "Repair")
+    prompt_legends(ink, "暂不", "修复")
 }
 
 pub fn update_legends(ink: [u8; 3]) -> [UndoFace; 3] {
-    let [cancel, install] = prompt_legends(ink, "Cancel", "Install");
+    let [cancel, install] = prompt_legends(ink, "取消", "安装");
     [
         cancel,
         install,
-        with_hint(button_face(ButtonLegend::B), "Back", Some(ink), true),
+        with_hint(button_face(ButtonLegend::B), "返回", Some(ink), true),
     ]
 }
 
 pub fn delete_legends(ink: [u8; 3]) -> [UndoFace; 2] {
     let hint = Some(ink);
     [
-        with_hint(button_face(ButtonLegend::B), "Keep", hint, true),
-        with_hint(button_face(ButtonLegend::X), "Delete", hint, false),
+        with_hint(button_face(ButtonLegend::B), "保留", hint, true),
+        with_hint(button_face(ButtonLegend::X), "删除", hint, false),
     ]
 }
 
 pub fn fetch_choice_legends(ink: [u8; 3]) -> [UndoFace; 2] {
     let hint = Some(ink);
     [
-        with_hint(button_face(ButtonLegend::B), "Cancel", hint, true),
+        with_hint(button_face(ButtonLegend::B), "取消", hint, true),
         with_hint(
             button_pair(ButtonLegend::Left, ButtonLegend::Right),
-            "Pick",
+            "选择",
             hint,
             false,
         ),
@@ -1491,7 +1489,7 @@ pub fn fetch_choice_legends(ink: [u8; 3]) -> [UndoFace; 2] {
 }
 
 pub fn fetch_legends(ink: [u8; 3]) -> UndoFace {
-    with_hint(button_face(ButtonLegend::B), "Stop", Some(ink), true)
+    with_hint(button_face(ButtonLegend::B), "停止", Some(ink), true)
 }
 
 fn small_button(which: ButtonLegend) -> UndoFace {
@@ -1506,7 +1504,7 @@ fn small_button(which: ButtonLegend) -> UndoFace {
 }
 
 pub fn print_stop_legend(ink: [u8; 3]) -> UndoFace {
-    with_hint(small_button(ButtonLegend::B), "Stop", Some(ink), true)
+    with_hint(small_button(ButtonLegend::B), "停止", Some(ink), true)
 }
 
 pub fn small_prompt_legends(ink: [u8; 3], no: &str, yes: &str) -> [UndoFace; 2] {
@@ -1517,7 +1515,7 @@ pub fn small_prompt_legends(ink: [u8; 3], no: &str, yes: &str) -> [UndoFace; 2] 
 }
 
 pub fn fetch_skip_legend(ink: [u8; 3]) -> UndoFace {
-    with_hint(button_face(ButtonLegend::X), "Skip", Some(ink), false)
+    with_hint(button_face(ButtonLegend::X), "跳过", Some(ink), false)
 }
 
 const PRINT_STOP_BUTTON: u32 = 24;

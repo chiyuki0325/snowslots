@@ -42,6 +42,7 @@ pub mod invite_find;
 pub mod kid;
 pub mod label_cache;
 pub mod latency;
+pub mod library;
 pub mod link_art_builder;
 pub mod link_kind;
 pub mod link_net;

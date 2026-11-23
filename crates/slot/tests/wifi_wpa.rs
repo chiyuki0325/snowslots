@@ -241,10 +241,10 @@ fn phases_follow_wpa_state() {
         Phase::Connected
     );
     assert!(a.done());
-    assert_eq!(Phase::GettingIp.label(), "Getting IP");
-    assert_eq!(Phase::Authenticating.label(), "Authenticating");
-    assert_eq!(Phase::Connecting.label(), "Connecting");
-    assert_eq!(Phase::Connected.label(), "Connected");
+    assert_eq!(Phase::GettingIp.label(), "正在获取IP地址");
+    assert_eq!(Phase::Authenticating.label(), "正在验证");
+    assert_eq!(Phase::Connecting.label(), "正在连接");
+    assert_eq!(Phase::Connected.label(), "已连接");
 }
 
 #[test]
@@ -325,12 +325,7 @@ fn failures_are_named() {
     .map(|f| Phase::Failed(f).label());
     assert_eq!(
         labels,
-        [
-            "Wrong Password",
-            "Not Found",
-            "No IP Address",
-            "Could Not Connect"
-        ]
+        ["密码错误", "未找到网络", "未获取到IP地址", "无法连接"]
     );
 }
 

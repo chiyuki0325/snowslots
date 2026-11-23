@@ -56,7 +56,7 @@ fn meridiem(hour: i64) -> &'static str {
 }
 
 const MONTHS: [&str; 12] = [
-    "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+    "1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月",
 ];
 
 fn month_name(month: i64) -> &'static str {
@@ -68,7 +68,11 @@ fn month_name(month: i64) -> &'static str {
 
 pub fn date_time_text(secs: i64, clock_24h: bool) -> String {
     let (_, month, day) = civil_from_days(secs.div_euclid(DAY));
-    format!("{} {day} {}", month_name(month), time_text(secs, clock_24h))
+    format!(
+        "{}{day}日 {}",
+        month_name(month),
+        time_text(secs, clock_24h)
+    )
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -91,11 +95,11 @@ impl ClockRow {
 
     pub fn label(self) -> &'static str {
         match self {
-            ClockRow::NetworkTime => "Set Automatically",
-            ClockRow::Date => "Date",
-            ClockRow::Time => "Time",
-            ClockRow::Zone => "City",
-            ClockRow::Clock => "Clock",
+            ClockRow::NetworkTime => "自动设置",
+            ClockRow::Date => "日期",
+            ClockRow::Time => "时间",
+            ClockRow::Zone => "城市",
+            ClockRow::Clock => "时制",
         }
     }
 }
@@ -335,17 +339,17 @@ impl ClockPicker {
             ClockRow::NetworkTime => vec![(
                 None,
                 match self.network_time {
-                    Some(true) => "On",
-                    _ => "Off",
+                    Some(true) => "开",
+                    _ => "关",
                 }
                 .into(),
             )],
             ClockRow::Date => vec![
-                (Some(Part::Month), month_name(self.month).into()),
-                (None, " ".into()),
-                (Some(Part::Day), self.day.to_string()),
-                (None, " ".into()),
                 (Some(Part::Year), self.year.to_string()),
+                (None, "年".into()),
+                (Some(Part::Month), month_name(self.month).into()),
+                (Some(Part::Day), self.day.to_string()),
+                (None, "日".into()),
             ],
             ClockRow::Time => {
                 let hour = match self.clock_24h {

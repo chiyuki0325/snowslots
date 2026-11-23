@@ -118,7 +118,7 @@ fn a_game_put_in_from_recents_comes_back_out_onto_recents_at_the_front() {
     write_slot_state(d.path(), &s).unwrap();
     let mut a = play(d.path(), "Fusion", true);
     eject(&mut a);
-    assert_eq!(a.shelf_platform_name(), Some("Recents"));
+    assert_eq!(a.shelf_platform_name(), Some("最近游戏"));
     assert_eq!(a.selected_stem(), Some("Fusion"));
     assert_eq!(
         read_slot_state(d.path()).recents,
@@ -136,7 +136,7 @@ fn a_game_put_in_from_its_own_shelf_comes_back_out_onto_that_shelf() {
     eject(&mut a);
     assert_eq!(a.shelf_platform_name(), Some("Game Boy Advance"));
     assert_eq!(a.selected_stem(), Some("Fusion"));
-    while a.shelf_platform_name() != Some("Recents") {
+    while a.shelf_platform_name() != Some("最近游戏") {
         press(&mut a, Btn::R1);
     }
     assert_eq!(a.selected_stem(), Some("Fusion"));
@@ -157,7 +157,7 @@ fn with_recents_on_the_card_boots_onto_the_last_game_played() {
         },
     );
     assert!(matches!(a.phase(), Phase::Shelf), "{:?}", a.phase());
-    assert_eq!(a.shelf_platform_name(), Some("Recents"));
+    assert_eq!(a.shelf_platform_name(), Some("最近游戏"));
     assert_eq!(a.selected_stem(), Some("Tetris"));
 }
 
@@ -188,7 +188,7 @@ fn a_recent_game_whose_rom_is_gone_is_left_off_the_shelf() {
             ..SlotState::default()
         },
     );
-    assert_eq!(a.shelf_platform_name(), Some("Recents"));
+    assert_eq!(a.shelf_platform_name(), Some("最近游戏"));
     assert_eq!(a.selected_stem(), Some("Fusion"));
 }
 
@@ -209,20 +209,20 @@ fn turning_recents_on_and_off_in_the_menu_saves_and_adds_and_removes_the_shelf()
         press(&mut a, Btn::R1);
         names.extend(a.shelf_platform_name().map(str::to_string));
     }
-    assert!(names.iter().any(|n| n == "Recents"), "{names:?}");
-    while a.shelf_platform_name() != Some("Recents") {
+    assert!(names.iter().any(|n| n == "最近游戏"), "{names:?}");
+    while a.shelf_platform_name() != Some("最近游戏") {
         press(&mut a, Btn::R1);
     }
     flip_recents(&mut a);
     assert!(!read_slot_state(d.path()).show_recents);
     assert_ne!(
         a.shelf_platform_name(),
-        Some("Recents"),
+        Some("最近游戏"),
         "turning recents off left the carousel on an empty shelf"
     );
     for _ in 0..3 {
         press(&mut a, Btn::R1);
-        assert_ne!(a.shelf_platform_name(), Some("Recents"));
+        assert_ne!(a.shelf_platform_name(), Some("最近游戏"));
     }
 }
 
@@ -260,7 +260,7 @@ fn x_on_recents_takes_the_selected_game_off_and_selects_the_next() {
     let mut a = three_recents(d.path());
     assert_eq!(a.selected_stem(), Some("Tetris"));
     press(&mut a, Btn::X);
-    assert_eq!(a.shelf_platform_name(), Some("Recents"));
+    assert_eq!(a.shelf_platform_name(), Some("最近游戏"));
     assert_eq!(a.selected_stem(), Some("Emerald"));
     assert_eq!(
         read_slot_state(d.path()).recents,
@@ -293,9 +293,9 @@ fn removing_the_last_recent_moves_off_the_empty_shelf() {
             ..SlotState::default()
         },
     );
-    assert_eq!(a.shelf_platform_name(), Some("Recents"));
+    assert_eq!(a.shelf_platform_name(), Some("最近游戏"));
     press(&mut a, Btn::X);
     assert!(read_slot_state(d.path()).recents.is_empty());
-    assert_ne!(a.shelf_platform_name(), Some("Recents"));
+    assert_ne!(a.shelf_platform_name(), Some("最近游戏"));
     assert!(a.selected_stem().is_some());
 }

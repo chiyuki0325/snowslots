@@ -221,7 +221,7 @@ fn the_title_fades_out_behind_the_add_to_collection_screen() {
 #[test]
 fn the_title_fades_out_behind_the_remove_from_collection_screen() {
     let (_d, mut a) = collection_card();
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R2);
     assert_eq!(a.shelf_platform_name(), Some("Puzzlers"));
     a.set_shelf_platform_face(TexId::from_raw(RACK), 80);

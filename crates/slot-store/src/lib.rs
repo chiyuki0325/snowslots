@@ -17,6 +17,7 @@ mod gba;
 mod guides;
 pub mod header_index;
 pub mod ini;
+mod library_cache;
 #[cfg(feature = "nds")]
 mod nds_header;
 pub mod overlay;
@@ -49,14 +50,18 @@ pub use guides::{
     decode_guide, find_guide, read_guide, read_guide_spot, write_guide_spot, GuideSpot, GUIDES_DIR,
     GUIDE_SPOTS_FILE,
 };
+pub use library_cache::{
+    library_cache_path, load_library, load_library_with, read_library_cache, remove_library_cache,
+    write_library_cache, LibraryBoot,
+};
 #[cfg(feature = "nds")]
 pub use nds_header::{read_banner, NdsBanner};
 pub use overlay::{overlay_entries, OverlayEntry, OverlayPart};
 pub use platform::Platform;
 pub use ring::{is_stamp, StateEntry, StateRing, RING_MAX};
 pub use scan::{
-    clean_label, initial, is_hidden, label_tags, listing, scan, scan_platform, sort_key, Cart,
-    StoreError,
+    clean_label, find_file_by_stem, initial, is_hidden, label_tags, listing, scan, scan_platform,
+    scan_report, sort_key, Cart, LibraryScan, StoreError,
 };
 pub use shots::{shot_stamp, ShotDir, ShotEntry, SCREENSHOTS_DIR};
 pub use slot_state::{

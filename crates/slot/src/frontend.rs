@@ -207,15 +207,15 @@ fn sync_studio(app: &mut App, compositor: &mut Compositor, st: &mut StudioSync) 
     if !st.setup {
         st.setup = true;
         for (legend, glyph, word) in [
-            (Legend::Back, G::B, "Back"),
-            (Legend::Open, G::A, "Open"),
-            (Legend::Apply, G::A, "Apply"),
-            (Legend::Write, G::A, "Write"),
-            (Legend::Change, G::LeftRight, "Change"),
-            (Legend::ChangeVertical, G::UpDown, "Change"),
-            (Legend::Move, G::LeftRight, "Move"),
-            (Legend::Reset, G::X, "Reset"),
-            (Legend::Hex, G::Y, "Hex"),
+            (Legend::Back, G::B, "返回"),
+            (Legend::Open, G::A, "打开"),
+            (Legend::Apply, G::A, "应用"),
+            (Legend::Write, G::A, "写入"),
+            (Legend::Change, G::LeftRight, "更改"),
+            (Legend::ChangeVertical, G::UpDown, "更改"),
+            (Legend::Move, G::LeftRight, "移动"),
+            (Legend::Reset, G::X, "重置"),
+            (Legend::Hex, G::Y, "十六进制"),
         ] {
             for (left, light) in [(true, false), (false, false), (true, true), (false, true)] {
                 let face = slot_ui::studio_legend(glyph, word, footer_ink(light), left);
@@ -378,7 +378,7 @@ fn sync_fetch_art(app: &mut App, compositor: &mut Compositor, st: &mut FetchSync
         let mut set = |ink: [u8; 3]| {
             let [cancel, pick] = slot_ui::fetch_choice_legends(ink);
             let stop = slot_ui::fetch_legends(ink);
-            let [done, _] = prompt_legends(ink, "Done", "");
+            let [done, _] = prompt_legends(ink, "完成", "");
             let skip = slot_ui::fetch_skip_legend(ink);
             [up(cancel), up(pick), up(stop), up(done), up(skip)]
         };
@@ -773,7 +773,7 @@ impl Frontend {
                 .map(|f| (compositor.create_texture(f.w, f.h, &f.rgba), f.w))
         });
         self.session.app_mut().set_clock_legend_faces(clock_legends);
-        let title = menu_face("Set the clock");
+        let title = menu_face("设置时间");
         let tex = compositor.create_texture(title.w, title.h, &title.rgba);
         self.session
             .app_mut()
@@ -1475,7 +1475,7 @@ impl Frontend {
         }
         let faces = &mut self.rebuild_faces;
         let title = *faces.title.get_or_insert_with(|| {
-            let f = rebuild_title_face("Caching New Labels");
+            let f = rebuild_title_face("正在缓存新封面");
             (compositor.create_texture(f.w, f.h, &f.rgba), f.w, f.h)
         });
         let done = rebuild.done();
@@ -1496,6 +1496,12 @@ impl Frontend {
         screen.draw(self.session.app().canvas(), &mut self.draws);
         compositor.draw_list(&self.draws);
         true
+    }
+
+    pub fn library_presented(&mut self) {
+        if !self.rebuild.as_ref().is_some_and(Rebuild::on_screen) {
+            self.session.app_mut().library_presented();
+        }
     }
 
     pub fn advance(&mut self, input: &mut dyn InputSource) {
@@ -1703,9 +1709,9 @@ impl UiFaces {
                 .iter()
                 .map(|c| {
                     menu_face(match c {
-                        PowerChoice::Restart => "Restarting",
-                        PowerChoice::PowerOff => "Powering Down",
-                        PowerChoice::Repair => "Repairing SD Card",
+                        PowerChoice::Restart => "正在重启",
+                        PowerChoice::PowerOff => "正在关机",
+                        PowerChoice::Repair => "正在修复SD卡",
                     })
                 })
                 .collect(),
@@ -1721,8 +1727,8 @@ impl UiFaces {
             quick_legend: quick_legend_faces(footer_ink(false)),
             quick_legend_light: quick_legend_faces(footer_ink(true)),
             descriptions: [
-                quick_description_face(&["Supports single button and MENU+button."]),
-                quick_description_face(&["Supports single button and two button chords."]),
+                quick_description_face(&["支持单键和MENU组合键。"]),
+                quick_description_face(&["支持单键和双键组合。"]),
             ],
             sockets: slot_store::Core::ALL
                 .iter()
@@ -1746,7 +1752,7 @@ impl UiFaces {
             core_legend: core_button_legends(footer_ink(false)),
             core_legend_light: core_button_legends(footer_ink(true)),
             link_roles: LinkRow::ALL.iter().map(|r| menu_face(r.text())).collect(),
-            linked: menu_face("Linked"),
+            linked: menu_face("已联机"),
             link_legend: link_legend_faces(footer_ink(false)),
             link_legend_light: link_legend_faces(footer_ink(true)),
             link_steps: LinkStep::ALL.iter().map(|s| menu_face(s.line())).collect(),
@@ -1770,8 +1776,8 @@ impl UiFaces {
             repair: {
                 let [not_now, repair] = repair_legends(footer_ink(false));
                 vec![
-                    menu_face("Repair the SD card?"),
-                    menu_detail_face("slot restarts when it is done."),
+                    menu_face("修复SD卡？"),
+                    menu_detail_face("修复完成后slot会重启。"),
                     not_now,
                     repair,
                 ]
@@ -1779,19 +1785,19 @@ impl UiFaces {
             delete: {
                 let [keep, delete] = delete_legends(footer_ink(false));
                 vec![
-                    menu_face("Delete this save state?"),
-                    menu_detail_face("It cannot be brought back."),
+                    menu_face("删除此即时存档？"),
+                    menu_detail_face("删除后无法恢复。"),
                     keep,
                     delete,
                 ]
             },
             kid: {
-                let [cancel, on] = prompt_legends(footer_ink(false), "Cancel", "Turn On");
+                let [cancel, on] = prompt_legends(footer_ink(false), "取消", "开启");
                 vec![
-                    menu_face("Turn on Kid Mode?"),
-                    menu_detail_face("Settings and editing lock."),
-                    menu_detail_face("To unlock, hold START, SELECT, L2 and R2"),
-                    menu_detail_face("while turning on."),
+                    menu_face("开启儿童模式？"),
+                    menu_detail_face("开启后锁定设置和编辑功能。"),
+                    menu_detail_face("解锁时请按住START、SELECT、L2和R2"),
+                    menu_detail_face("并开机。"),
                     cancel,
                     on,
                 ]
@@ -1799,21 +1805,21 @@ impl UiFaces {
             delete_shot: {
                 let [keep, delete] = delete_legends(footer_ink(false));
                 vec![
-                    menu_face("Delete this screenshot?"),
-                    menu_detail_face("It cannot be brought back."),
+                    menu_face("删除此截图？"),
+                    menu_detail_face("删除后无法恢复。"),
                     keep,
                     delete,
                 ]
             },
             reset: {
-                let [cancel, reset] = prompt_legends(footer_ink(false), "Cancel", "Reset");
+                let [cancel, reset] = prompt_legends(footer_ink(false), "取消", "重置");
                 vec![
-                    menu_face("Reset all controls?"),
-                    menu_detail_face("Every button goes back to its default."),
-                    menu_face("Reset all shortcuts?"),
-                    menu_detail_face("Every shortcut goes back to its default."),
-                    menu_face("Reset all shelf keys?"),
-                    menu_detail_face("Every shelf key goes back to its default."),
+                    menu_face("重置所有游戏按键？"),
+                    menu_detail_face("所有按键将恢复默认设置。"),
+                    menu_face("重置所有快捷键？"),
+                    menu_detail_face("所有快捷键将恢复默认设置。"),
+                    menu_face("重置所有游戏架按键？"),
+                    menu_detail_face("所有游戏架按键将恢复默认设置。"),
                     cancel,
                     reset,
                 ]

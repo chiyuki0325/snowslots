@@ -810,13 +810,13 @@ fn returns_to_favorites(mode: slot_store::KidMode) {
     );
     if mode == slot_store::KidMode::Shelves {
         for _ in 0..8 {
-            if kid.s.app().shelf_platform_name() == Some("Favorites") {
+            if kid.s.app().shelf_platform_name() == Some("收藏") {
                 break;
             }
             kid.s.app_mut().apply(Action::NextShelf);
             kid.step(&[]);
         }
-        assert_eq!(kid.s.app().shelf_platform_name(), Some("Favorites"));
+        assert_eq!(kid.s.app().shelf_platform_name(), Some("收藏"));
     }
     assert_eq!(kid.s.app().selected_stem(), Some("Aaa"));
     kid.s.app_mut().apply(Action::GbaDown(Btn::Right));

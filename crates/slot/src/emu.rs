@@ -889,12 +889,10 @@ impl Worker {
                 }
                 if since_snapshot >= SNAPSHOT_EVERY {
                     since_snapshot = 0;
-                    if let Ok(state) = core.serialize() {
-                        rewind.push(state);
-                        self.shared
-                            .rewind_fill
-                            .store(rewind.fill(), Ordering::Relaxed);
-                    }
+                    rewind.try_record(|| core.serialize().ok());
+                    self.shared
+                        .rewind_fill
+                        .store(rewind.fill(), Ordering::Relaxed);
                 }
 
                 let audio = core.take_audio();

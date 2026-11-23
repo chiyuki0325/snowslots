@@ -18,7 +18,7 @@ const DOT_DIM: f32 = 0.35;
 
 const MARGIN: f32 = 16.0;
 
-pub const LEGEND: [(&str, &str); 3] = [("B", "Back"), ("Y", "Delete"), ("A", "Load")];
+pub const LEGEND: [(&str, &str); 3] = [("B", "返回"), ("Y", "删除"), ("A", "读取")];
 const WAYS_OUT: usize = 2;
 const UNDO_KEY: &str = "X";
 
@@ -187,17 +187,19 @@ impl Polaroids {
         };
         let delta = parsed - then;
         if delta < 60 {
-            return "just now".into();
+            return "刚刚".into();
         }
         if delta < 3600 {
-            return format!("{} min ago", delta / 60);
+            return format!("{}分钟前", delta / 60);
         }
         if delta < RELATIVE_WINDOW {
-            return format!("{} hr ago", delta / 3600);
+            return format!("{}小时前", delta / 3600);
         }
         format!(
-            "{} {}",
-            &stamp[..10],
+            "{}年{}月{}日 {}",
+            &stamp[..4],
+            &stamp[5..7],
+            &stamp[8..10],
             crate::clock::time_text(then, clock_24h)
         )
     }

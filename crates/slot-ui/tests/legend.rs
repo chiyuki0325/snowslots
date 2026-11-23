@@ -11,7 +11,7 @@ fn footer_legends_keep_the_hint_on_the_inner_side() {
     assert_eq!(hint_ink(&light[0], true), footer_ink(true));
     assert_eq!(hint_ink(&light[2], false), footer_ink(true));
     assert!(menu.iter().all(|f| f.h == MOUTH_H as u32));
-    assert!(menu[3].w > menu[0].w, "Resume is a longer hint than Back");
+    assert_eq!(menu[3].w, menu[0].w, "继续和返回应占用相同宽度");
     assert!(
         hint_is_beside(&menu[0], true),
         "Back sits to the right of B"

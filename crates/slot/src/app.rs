@@ -7,11 +7,11 @@ use slot_input::{Action, Btn, RawEvent, MENU_DOUBLE_TAP_MS, MUTE_CHORD_MS};
 use slot_power::{Battery, Charge, LedState, LidPolicy, Power, RepairResult};
 use slot_retro::LinkChannel;
 use slot_store::{
-    format_stamp, parse_stamp, read_slot_state, scan, write_slot_state, BatteryDisplay, BezelPick,
-    Blending, Cart, Collection, Core, GbColors, KidMode, Platform, Recent, Scale, Shader,
-    ShelfMode, ShotDir, ShotEntry, SlotState, StateEntry, StateRing, Stretch, WallpaperPick,
-    WallpaperTint, BLUE_LIGHT_MAX, BRIGHTNESS_MAX, CONTRAST_MAX, DIM_MAX, FF_SPEEDS, RING_MAX,
-    SATURATION_MAX, SUNLIGHT_MAX, VOLUME_MAX,
+    format_stamp, load_library, load_library_with, parse_stamp, read_slot_state, write_slot_state,
+    BatteryDisplay, BezelPick, Blending, Cart, Collection, Core, GbColors, KidMode, Platform,
+    Recent, Scale, Shader, ShelfMode, ShotDir, ShotEntry, SlotState, StateEntry, StateRing,
+    Stretch, WallpaperPick, WallpaperTint, BLUE_LIGHT_MAX, BRIGHTNESS_MAX, CONTRAST_MAX, DIM_MAX,
+    FF_SPEEDS, RING_MAX, SATURATION_MAX, SUNLIGHT_MAX, VOLUME_MAX,
 };
 use slot_ui::{
     board_from_shaped, draw_empty_slot, draw_footer, draw_ground, draw_sticker, ease, footer_ink,
@@ -51,7 +51,7 @@ use slot_store::{
     Binding, CarouselKeys, Controls, Device, GameButton, Modifier, ShortcutKeys, LID_OFF_MIN,
 };
 
-pub const RECORDING: &str = "Recording";
+pub const RECORDING: &str = "正在录制";
 pub const CLASH_MARK: &str = "!";
 
 #[derive(Copy, Clone, Debug)]
@@ -320,8 +320,8 @@ impl LinkRow {
 
     pub fn text(self) -> &'static str {
         match self {
-            LinkRow::Host => "Host",
-            LinkRow::Join => "Join",
+            LinkRow::Host => "主机",
+            LinkRow::Join => "加入",
         }
     }
 
@@ -523,11 +523,11 @@ impl Rack {
 
     fn name(self) -> &'static str {
         match self {
-            Rack::Recents => "Recents",
-            Rack::Favorites => "Favorites",
+            Rack::Recents => "最近游戏",
+            Rack::Favorites => "收藏",
             Rack::Collection(_) => "",
             Rack::Of(p) => p.name(),
-            Rack::AllGames => "All Games",
+            Rack::AllGames => "全部游戏",
         }
     }
 }
@@ -894,6 +894,7 @@ pub struct App {
     server_net: ServerNet,
     print_cues: Vec<Cue>,
     rescanned: bool,
+    library: Option<crate::library::LibraryRefresh>,
     stale_labels: Vec<Cart>,
     fetch_landed: Vec<ArtLanded>,
     fetch_relabeled: usize,
@@ -1119,6 +1120,7 @@ impl App {
             server_net: ServerNet::default(),
             print_cues: Vec::new(),
             rescanned: false,
+            library: None,
             stale_labels: Vec::new(),
             fetch_landed: Vec::new(),
             fetch_relabeled: 0,
@@ -1368,13 +1370,26 @@ impl App {
 
     pub fn boot_marked(root: &Path, loading: Option<LoadingMark>) -> Self {
         crate::root::ensure(root);
-        crate::server::sweep_names(root);
         slot_store::header_index::load(root);
         crate::boot_time::mark("root");
-        let carts = scan(root).unwrap_or_default();
-        retain_headers(&carts);
-        crate::boot_time::mark("scan");
-        let mut app = App::new(carts);
+        let mut loaded = load_library_with(root, || crate::server::sweep_names(root));
+        if loaded.from_cache && crate::server::cached_names_need_sweep(&loaded.carts) {
+            crate::server::sweep_names(root);
+            loaded = load_library(root);
+        }
+        crate::boot_time::mark(if loaded.from_cache {
+            "library cache"
+        } else {
+            "scan"
+        });
+        if !loaded.from_cache && loaded.complete {
+            retain_headers(&loaded.carts);
+        }
+        let initial = (!loaded.from_cache && loaded.complete).then(|| loaded.carts.clone());
+        let library =
+            crate::library::LibraryRefresh::new(root.to_path_buf(), initial, loaded.from_cache);
+        let mut app = App::new(loaded.carts);
+        app.library = library;
         app.root = Some(root.to_path_buf());
         app.loading = loading;
         app.state = read_slot_state(root);
@@ -1969,7 +1984,7 @@ impl App {
         if self.collections[i].games.is_empty() {
             self.delete_collection(i);
         }
-        self.say_collection(format!("Removed from {name}"));
+        self.say_collection(format!("已从{name}移除"));
         self.note_shelf();
     }
 
@@ -2008,7 +2023,7 @@ impl App {
     fn choice_name(&self, c: crate::editing::Choice) -> &str {
         match c {
             crate::editing::Choice::Collection(i) => &self.collections[i].name,
-            crate::editing::Choice::New => "New Collection",
+            crate::editing::Choice::New => "新建合集",
         }
     }
 
@@ -2259,9 +2274,9 @@ impl App {
 
     pub fn moving(&self) -> Option<String> {
         match self.edit.as_ref()? {
-            crate::editing::Edit::MovingGame { .. } => Some("Move".to_string()),
+            crate::editing::Edit::MovingGame { .. } => Some("移动".to_string()),
             crate::editing::Edit::MovingCollection { row, at, .. } => {
-                Some(format!("Move {}", row[*at]))
+                Some(format!("移动{}", row[*at]))
             }
             _ => None,
         }
@@ -2352,7 +2367,7 @@ impl App {
             Action::GbaDown(Btn::A) => {
                 return match self.picked() {
                     Some(Choice::New) => self.open_keyboard(
-                        "New Collection",
+                        "新建合集",
                         None,
                         KeyboardFor::CollectionName,
                         slot_ui::Layout::General,
@@ -2471,8 +2486,8 @@ impl App {
             }
         }
         self.say_collection(match added.len() {
-            1 => format!("Added to {name}"),
-            n => format!("Added {n} to {name}"),
+            1 => format!("已加入{name}"),
+            n => format!("已将{n}个游戏加入{name}"),
         });
         self.note_shelf();
     }
@@ -2499,13 +2514,13 @@ impl App {
                 .iter()
                 .any(|c| c.name.eq_ignore_ascii_case(&name));
             let why = match taken {
-                true => "Name already exists, use a different name",
-                false => "Name not allowed, use a different name",
+                true => "名称已存在，请换一个名字",
+                false => "名称不可用，请换一个名字",
             };
             match self.keyboard.as_mut() {
                 Some((kb, _)) => kb.refuse(why),
                 None => self.open_keyboard(
-                    "New Collection",
+                    "新建合集",
                     Some(why),
                     KeyboardFor::CollectionName,
                     slot_ui::Layout::General,
@@ -3211,7 +3226,7 @@ impl App {
             .iter()
             .find(|(r, _)| self.rack_key(*r) == self.state.kid_shelf)
             .map(|(r, _)| self.rack_name(*r).to_string())
-            .unwrap_or_else(|| "All Games".to_string())
+            .unwrap_or_else(|| "全部游戏".to_string())
     }
 
     fn step_kid_mode(&mut self, right: bool) {
@@ -3267,7 +3282,7 @@ impl App {
     pub fn romm_texts(&self) -> [String; 4] {
         let host = self.romm.host();
         let server = match host.is_empty() {
-            true => "Not Set".to_string(),
+            true => "未设置".to_string(),
             false if host.chars().count() > ROMM_HOST_SHOWN => {
                 let head: String = host.chars().take(ROMM_HOST_SHOWN - 3).collect();
                 format!("{head}...")
@@ -3275,13 +3290,13 @@ impl App {
             false => host.to_string(),
         };
         let row = match (self.romm.paired(), self.romm_online) {
-            (false, _) => "SETUP",
-            (true, true) => "ONLINE",
-            (true, false) => "OFFLINE",
+            (false, _) => "设置",
+            (true, true) => "在线",
+            (true, false) => "离线",
         }
         .to_string();
         let port = self.romm.port.map(|p| p.to_string()).unwrap_or_default();
-        let status = self.romm_note.clone().unwrap_or("Paired".to_string());
+        let status = self.romm_note.clone().unwrap_or("已配对".to_string());
         [row, server, port, status]
     }
 
@@ -3414,7 +3429,7 @@ impl App {
 
     pub fn overlay_label(&self, platform: Platform) -> String {
         self.resolved_overlay(platform)
-            .map_or_else(|| "Off".to_string(), |e| e.name)
+            .map_or_else(|| "关".to_string(), |e| e.name)
     }
 
     fn cycle_overlay(&mut self, platform: Platform, right: bool) {
@@ -6523,7 +6538,7 @@ impl App {
             QuickRow::Nickname => {
                 let text = self.state.nickname.clone();
                 self.open_keyboard(
-                    "Nickname",
+                    "昵称",
                     None,
                     KeyboardFor::Nickname,
                     slot_ui::Layout::General,
@@ -6533,7 +6548,7 @@ impl App {
             QuickRow::RommServer => {
                 let text = self.romm.server.clone();
                 self.open_keyboard(
-                    "Server",
+                    "服务器",
                     None,
                     KeyboardFor::RommServer,
                     slot_ui::Layout::Host,
@@ -6543,7 +6558,7 @@ impl App {
             QuickRow::RommPort => {
                 let text = self.romm.port.map(|p| p.to_string()).unwrap_or_default();
                 self.open_keyboard(
-                    "Port",
+                    "端口",
                     None,
                     KeyboardFor::RommPort,
                     slot_ui::Layout::Numeric,
@@ -7671,6 +7686,7 @@ impl App {
         self.take_art_events();
         self.take_romm_events();
         self.romm_tick(self.now());
+        self.step_library();
         self.take_update_events();
         self.play_hold();
         self.repeat_held_dir();
@@ -10002,14 +10018,14 @@ impl App {
         use crate::editing::Edit;
         match self.edit.as_ref()? {
             Edit::Selecting { .. } => None,
-            Edit::Choosing { .. } => Some(("Add to which collection?".to_string(), false)),
+            Edit::Choosing { .. } => Some(("加入哪个合集？".to_string(), false)),
             Edit::Removing {
                 collection, last, ..
             } => {
                 let name = &self.collections[*collection].name;
                 Some(match last {
-                    true => (format!("Remove last game from {name}?"), true),
-                    false => (format!("Remove from {name}?"), false),
+                    true => (format!("从{name}移除最后一个游戏？"), true),
+                    false => (format!("从{name}移除？"), false),
                 })
             }
             Edit::MovingGame { .. } | Edit::MovingCollection { .. } => {
@@ -10030,7 +10046,7 @@ impl App {
         self.collections
             .iter()
             .map(|c| c.name.clone())
-            .chain(std::iter::once("New Collection".to_string()))
+            .chain(std::iter::once("新建合集".to_string()))
             .collect()
     }
 
@@ -10753,6 +10769,18 @@ impl App {
 
     fn insert(&mut self, clean: bool) {
         if !self.on_shelf() {
+            return;
+        }
+        if self.root.is_some()
+            && self
+                .shelf()
+                .carts
+                .get(self.shelf().index)
+                .is_some_and(|cart| !cart.rom.is_file())
+        {
+            self.refuse();
+            self.hud.toast(Toast::GameMissing, self.now());
+            self.invalidate_library();
             return;
         }
         self.settle_saves();
@@ -12490,6 +12518,7 @@ impl App {
     }
 
     fn set_cart_label(&mut self, platform: Platform, stem: &str, label: Option<PathBuf>) {
+        self.invalidate_library();
         for (_, shelf) in self.shelves.iter_mut() {
             for i in 0..shelf.carts.len() {
                 let cart = &mut shelf.carts[i];
@@ -12830,40 +12859,36 @@ impl App {
     }
 
     pub fn fetch_art_lines(&self) -> Vec<String> {
-        let carts = |n: usize, one: &str, many: &str| match n {
-            1 => format!("1 cart {one}"),
-            n => format!("{n} carts {many}"),
-        };
         match &self.fetch_art {
             None => Vec::new(),
             Some(FetchArt::Choice { missing, .. }) => vec![
-                "Fetch Missing Art".into(),
-                carts(*missing, "has no art", "have no art"),
-                "Real Label".into(),
-                "Logo Only".into(),
+                "补齐缺失封面".into(),
+                format!("{missing}个卡带没有封面"),
+                "原版标签".into(),
+                "仅标志".into(),
             ],
             Some(FetchArt::Running(run)) if run.boxes => match (run.stopping, run.counted) {
-                (true, _) => vec!["Stopping".into()],
+                (true, _) => vec!["正在停止".into()],
                 (false, true) => vec![
-                    "Fetching Box Art".into(),
-                    format!("{} of {}", run.landed + run.missed.len(), run.total),
+                    "正在获取盒装封面".into(),
+                    format!("{}/{}", run.landed + run.missed.len(), run.total),
                 ],
-                (false, false) if !self.wifi_up() => vec!["Connecting to Wi-Fi".into()],
-                (false, false) => vec!["Fetching Box Art".into()],
+                (false, false) if !self.wifi_up() => vec!["正在连接Wi-Fi".into()],
+                (false, false) => vec!["正在获取盒装封面".into()],
             },
             Some(FetchArt::Running(run)) => match &run.scene {
                 None if (run.skipping || run.closing.is_some()) && !run.stopping => vec![
-                    "Applying Labels".into(),
-                    format!("{} of {}", run.landed + run.missed.len(), run.total),
+                    "正在应用标签".into(),
+                    format!("{}/{}", run.landed + run.missed.len(), run.total),
                 ],
                 Some(scene) => vec![
-                    "Applying Labels".into(),
+                    "正在应用标签".into(),
                     slot_ui::clean_label(&scene.cart.stem),
-                    format!("{} of {}", scene.number, run.total.max(scene.number)),
+                    format!("{}/{}", scene.number, run.total.max(scene.number)),
                 ],
-                None if run.stopping => vec!["Stopping".into()],
-                None if !run.counted && !self.wifi_up() => vec!["Connecting to Wi-Fi".into()],
-                None => vec!["Fetching Art".into()],
+                None if run.stopping => vec!["正在停止".into()],
+                None if !run.counted && !self.wifi_up() => vec!["正在连接Wi-Fi".into()],
+                None => vec!["正在获取封面".into()],
             },
             Some(FetchArt::Summary {
                 stopped,
@@ -12873,15 +12898,15 @@ impl App {
                 ..
             }) => {
                 let heading = match failed {
-                    Some(UpdateFail::Offline | UpdateFail::NoWifi) => "Wi-Fi Lost",
-                    Some(UpdateFail::Clock) => "Clock Not Set",
-                    Some(_) => "Stopped",
-                    None if *stopped => "Stopped",
-                    None => "All Done",
+                    Some(UpdateFail::Offline | UpdateFail::NoWifi) => "Wi-Fi已断开",
+                    Some(UpdateFail::Clock) => "未设置时间",
+                    Some(_) => "已停止",
+                    None if *stopped => "已停止",
+                    None => "全部完成",
                 };
-                let mut lines = vec![heading.into(), "Added".into(), landed.to_string()];
+                let mut lines = vec![heading.into(), "已添加".into(), landed.to_string()];
                 if !missed.is_empty() {
-                    lines.push("No Art Found".into());
+                    lines.push("未找到封面".into());
                     lines.push(missed.len().to_string());
                 }
                 lines
@@ -13257,6 +13282,7 @@ impl App {
         stem: &str,
         shell: Option<slot_store::ShellChoice>,
     ) {
+        self.invalidate_library();
         for (_, shelf) in self.shelves.iter_mut() {
             for i in 0..shelf.carts.len() {
                 let cart = &mut shelf.carts[i];
@@ -13281,6 +13307,9 @@ impl App {
     }
 
     fn relabel_landed(&mut self) {
+        if self.fetch_relabeled < self.fetch_landed.len() {
+            self.invalidate_library();
+        }
         while self.fetch_relabeled < self.fetch_landed.len() {
             let landed = self.fetch_landed[self.fetch_relabeled].clone();
             self.fetch_relabeled += 1;
@@ -13433,6 +13462,7 @@ impl App {
             return;
         };
         self.persist();
+        self.invalidate_library();
         self.server = Some(ServerSession::open(root, self.server_net.clone()));
     }
 
@@ -13515,7 +13545,66 @@ impl App {
         self.restock_collections();
     }
 
+    pub fn library_presented(&mut self) {
+        if let Some(library) = &mut self.library {
+            library.presented();
+        }
+    }
+
+    pub fn library_refresh_pending(&self) -> bool {
+        self.library
+            .as_ref()
+            .is_some_and(|library| library.pending())
+    }
+
+    fn invalidate_library(&mut self) {
+        if let Some(library) = &mut self.library {
+            library.invalidate();
+        }
+    }
+
+    fn step_library(&mut self) {
+        let allowed = self.on_shelf()
+            && self.edit.is_none()
+            && self.core_picker.is_none()
+            && self.server.is_none()
+            && self.studio.is_none()
+            && self.update.is_none()
+            && !self.art_busy()
+            && self.romm_carts.is_none()
+            && self.romm_gifts.is_empty()
+            && !self.powering_off;
+        let Some(carts) = self
+            .library
+            .as_mut()
+            .and_then(|library| library.poll(allowed))
+        else {
+            return;
+        };
+        let current: HashMap<_, _> = self.carts().map(|cart| (&cart.rom, cart)).collect();
+        let unchanged = current.len() == carts.len()
+            && carts.iter().all(|cart| {
+                current.get(&cart.rom).is_some_and(|old| {
+                    old.platform == cart.platform
+                        && old.stem == cart.stem
+                        && old.label == cart.label
+                        && old.shell == cart.shell
+                        && old.tags == cart.tags
+                })
+            });
+        if unchanged {
+            retain_headers(&carts);
+        } else {
+            self.apply_library(carts);
+        }
+    }
+
     fn adopt_rescan(&mut self, carts: Vec<Cart>) {
+        self.invalidate_library();
+        self.apply_library(carts);
+    }
+
+    fn apply_library(&mut self, carts: Vec<Cart>) {
         retain_headers(&carts);
         if let Some(root) = self.root.clone() {
             self.gifts.retain_games(&root, &carts);
@@ -14009,6 +14098,7 @@ impl App {
                     platform,
                     stem,
                 } => {
+                    self.invalidate_library();
                     self.romm_carts = Some(carts);
                     self.romm_gifts.push((platform, stem));
                 }
@@ -14037,25 +14127,25 @@ impl App {
         Some(match &self.pair_screen {
             PairScreen::Starting => PairView {
                 url: None,
-                lines: vec![(Scan, "Connecting".into())],
+                lines: vec![(Scan, "正在连接".into())],
             },
             PairScreen::Show { url, code } => PairView {
                 url: Some(url.clone()),
                 lines: vec![
-                    (Scan, "Scan with".into()),
-                    (Phone, "Your phone".into()),
-                    (Enter, "Or enter".into()),
+                    (Scan, "请用手机".into()),
+                    (Phone, "扫描二维码".into()),
+                    (Enter, "或输入配对码".into()),
                     (Code, code.clone()),
-                    (Status, "Waiting".into()),
+                    (Status, "等待配对".into()),
                 ],
             },
             PairScreen::Failed(fail) => PairView {
                 url: None,
                 lines: match fail {
-                    PairFail::Offline => words([(Scan, "Can't reach"), (Phone, "the server")]),
-                    PairFail::TooOld => words([(Scan, "RomM 5.4.0"), (Phone, "or later needed")]),
-                    PairFail::Denied => words([(Scan, "Pairing"), (Phone, "was denied")]),
-                    PairFail::Expired => words([(Scan, "Pairing"), (Phone, "expired")]),
+                    PairFail::Offline => words([(Scan, "无法连接"), (Phone, "服务器")]),
+                    PairFail::TooOld => words([(Scan, "需要RomM"), (Phone, "5.4.0或更新版本")]),
+                    PairFail::Denied => words([(Scan, "配对请求"), (Phone, "已被拒绝")]),
+                    PairFail::Expired => words([(Scan, "配对码"), (Phone, "已过期")]),
                 },
             },
         })
@@ -14274,7 +14364,7 @@ impl App {
 
     pub fn forget_prompt(&self) -> Option<String> {
         match (&self.phase, self.forget_prompt) {
-            (Phase::NetworkPage { ssid, .. }, true) => Some(format!("Forget {ssid}?")),
+            (Phase::NetworkPage { ssid, .. }, true) => Some(format!("忘记{ssid}？")),
             _ => None,
         }
     }
@@ -14321,9 +14411,9 @@ impl App {
         use crate::networks::{list_rows, page_rows, scan_rows, selected, NetRow, PageRow};
         let (snap, off) = (self.wifi(), self.state.wifi_off);
         let pick_action = |row: &NetRow| match row {
-            NetRow::Saved(_) => "Open",
-            NetRow::Nearby(_) | NetRow::Other => "Join",
-            NetRow::Scan => "Scan",
+            NetRow::Saved(_) => "打开",
+            NetRow::Nearby(_) | NetRow::Other => "加入",
+            NetRow::Scan => "搜索",
         };
         match &self.phase {
             Phase::Networks { pick } => {
@@ -14338,11 +14428,11 @@ impl App {
                 let rows = page_rows(snap, ssid, off);
                 match rows[(*row).min(rows.len() - 1)] {
                     PageRow::Status | PageRow::Ip => None,
-                    PageRow::Password => Some("Open"),
-                    PageRow::Connect => Some("Connect"),
-                    PageRow::Disconnect => Some("Disconnect"),
-                    PageRow::AutoJoin => Some("Change"),
-                    PageRow::Forget => Some("Forget"),
+                    PageRow::Password => Some("打开"),
+                    PageRow::Connect => Some("连接"),
+                    PageRow::Disconnect => Some("断开"),
+                    PageRow::AutoJoin => Some("更改"),
+                    PageRow::Forget => Some("忘记"),
                 }
             }
             _ => None,
@@ -14353,9 +14443,9 @@ impl App {
         let scanning =
             matches!(self.phase, Phase::NetworkScan { .. }) && self.wifi().scan.is_none();
         if scanning {
-            "Cancel"
+            "取消"
         } else {
-            "Back"
+            "返回"
         }
     }
 
@@ -14427,18 +14517,18 @@ impl App {
         };
         let net = self.net_legends.as_ref();
         let left = match self.network_back() {
-            "Cancel" => net.map_or(back, |n| n.cancel[light as usize]),
+            "取消" => net.map_or(back, |n| n.cancel[light as usize]),
             _ => back,
         };
         self.draw_side_legend(left, false, self.legend_y(), out);
         let right = match self.network_action() {
-            Some("Open") => Some(open),
-            Some("Change") => Some(change),
-            Some("Join") => net.map(|n| n.join[light as usize]),
-            Some("Scan") => net.map(|n| n.scan[light as usize]),
-            Some("Connect") => net.map(|n| n.connect[light as usize]),
-            Some("Disconnect") => net.map(|n| n.disconnect[light as usize]),
-            Some("Forget") => net.map(|n| n.forget[light as usize]),
+            Some("打开") => Some(open),
+            Some("更改") => Some(change),
+            Some("加入") => net.map(|n| n.join[light as usize]),
+            Some("搜索") => net.map(|n| n.scan[light as usize]),
+            Some("连接") => net.map(|n| n.connect[light as usize]),
+            Some("断开") => net.map(|n| n.disconnect[light as usize]),
+            Some("忘记") => net.map(|n| n.forget[light as usize]),
             _ => None,
         };
         if let Some(right) = right {
@@ -14448,11 +14538,11 @@ impl App {
 
     pub fn networks_value(&self) -> String {
         if self.state.wifi_off {
-            return "Off".into();
+            return "关".into();
         }
         match &self.wifi().status.ssid {
             Some(ssid) if self.wifi_up() => ssid.clone(),
-            _ => "Not Connected".into(),
+            _ => "未连接".into(),
         }
     }
 
@@ -14478,65 +14568,47 @@ impl App {
 
     pub fn update_text(&self) -> Option<(String, String)> {
         let running = crate::build_info::Build::current().version;
-        let retry = "Nothing was changed. Try again later.";
+        let retry = "未做任何更改，请稍后重试。";
         let (title, detail) = match self.update.as_ref()? {
-            UpdateState::Checking => ("Checking for updates".into(), String::new()),
+            UpdateState::Checking => ("正在检查更新".into(), String::new()),
             UpdateState::Available(offers, _) => (
                 match offers.len() {
-                    1 => "An update is available",
-                    _ => "Updates are available",
+                    1 => "有可用更新",
+                    _ => "有多项可用更新",
                 }
                 .into(),
                 String::new(),
             ),
             UpdateState::Battery(_) => (
-                "Battery is low".into(),
-                "Plug in before updating BaseOS. A installs anyway.".into(),
+                "电量不足".into(),
+                "请接电后更新BaseOS，按A仍可安装。".into(),
             ),
-            UpdateState::UpToDate => (
-                "slot is up to date".into(),
-                format!("{running} is the latest version."),
-            ),
-            UpdateState::CheckFailed => (
-                "Could not fetch update info".into(),
-                "Try again later.".into(),
-            ),
-            UpdateState::Notice(NetNotice::Password) => ("Invalid Password".into(), String::new()),
-            UpdateState::Notice(NetNotice::RommPort) => ("Invalid Port".into(), String::new()),
+            UpdateState::UpToDate => ("slot已是最新版本".into(), format!("{running}是最新版本。")),
+            UpdateState::CheckFailed => ("无法获取更新信息".into(), "请稍后重试。".into()),
+            UpdateState::Notice(NetNotice::Password) => ("密码无效".into(), String::new()),
+            UpdateState::Notice(NetNotice::RommPort) => ("端口无效".into(), String::new()),
             UpdateState::Notice(NetNotice::NoNetwork) => {
-                ("Not connected".into(), "Join a Wi-Fi network first.".into())
+                ("未连接网络".into(), "请先连接Wi-Fi。".into())
             }
-            UpdateState::Notice(NetNotice::RommNoServer) => (
-                "Enter a server first".into(),
-                "Set Server before pairing.".into(),
-            ),
+            UpdateState::Notice(NetNotice::RommNoServer) => {
+                ("请先填写服务器".into(), "设置服务器地址后再配对。".into())
+            }
             UpdateState::Notice(NetNotice::ServerFailed) => {
-                ("Gamebit failed".into(), "Gamebit has stopped.".into())
+                ("Gamebit运行失败".into(), "Gamebit已停止。".into())
             }
             UpdateState::Downloading(..)
             | UpdateState::Cancelling(..)
             | UpdateState::Closing(_) => return None,
             UpdateState::Failed(f) => {
                 let (title, detail) = match f {
-                    UpdateFail::NoWifi => {
-                        ("Could not join Wi-Fi", "Check Wi-Fi in the System menu.")
-                    }
-                    UpdateFail::Offline => (
-                        "Could not connect",
-                        "Check the network has internet access.",
-                    ),
-                    UpdateFail::Clock => (
-                        "Could not check for updates",
-                        "Set the date and time, then try again.",
-                    ),
-                    UpdateFail::Download => ("Download failed", retry),
-                    UpdateFail::Checksum => ("The download was damaged", retry),
-                    UpdateFail::Bad => ("The update could not be read", retry),
-                    UpdateFail::Space => (
-                        "Not enough space on the card",
-                        "Free some space, then try again.",
-                    ),
-                    UpdateFail::Rejected(why) => ("BaseOS refused the update", why.as_str()),
+                    UpdateFail::NoWifi => ("无法连接Wi-Fi", "请在系统菜单中检查Wi-Fi设置。"),
+                    UpdateFail::Offline => ("无法连接", "请检查网络能否访问互联网。"),
+                    UpdateFail::Clock => ("无法检查更新", "请设置日期与时间后重试。"),
+                    UpdateFail::Download => ("下载失败", retry),
+                    UpdateFail::Checksum => ("下载文件已损坏", retry),
+                    UpdateFail::Bad => ("无法读取更新包", retry),
+                    UpdateFail::Space => ("存储卡空间不足", "请清理一些空间后重试。"),
+                    UpdateFail::Rejected(why) => ("BaseOS拒绝了更新", why.as_str()),
                 };
                 (title.into(), detail.into())
             }
@@ -15922,9 +15994,9 @@ impl App {
             return None;
         }
         match self.pending.as_ref()?.0 {
-            PendingUndo::Save { .. } => Some("undo save"),
-            PendingUndo::Load { .. } => Some("undo load"),
-            PendingUndo::Reset { .. } => Some("undo reset"),
+            PendingUndo::Save { .. } => Some("撤销保存"),
+            PendingUndo::Load { .. } => Some("撤销读取"),
+            PendingUndo::Reset { .. } => Some("撤销重置"),
         }
     }
 
@@ -15986,14 +16058,8 @@ impl App {
             return None;
         }
         Some(match self.shots_to_delete() {
-            1 => (
-                "Delete this screenshot?".to_string(),
-                "It cannot be brought back.",
-            ),
-            n => (
-                format!("Delete {n} screenshots?"),
-                "They cannot be brought back.",
-            ),
+            1 => ("删除这张截图？".to_string(), "删除后无法恢复。"),
+            n => (format!("删除{n}张截图？"), "删除后无法恢复。"),
         })
     }
 

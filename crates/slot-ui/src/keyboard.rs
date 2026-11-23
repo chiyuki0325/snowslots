@@ -234,12 +234,12 @@ impl Keyboard {
         match cap {
             Cap::Char(i) => self.value(i).to_string(),
             Cap::Special(s) => match s {
-                Delete => "Delete",
-                Done => "Done",
-                Shift => "Shift",
+                Delete => "删除",
+                Done => "完成",
+                Shift => "大小写",
                 Symbols if self.symbols => "abc",
                 Symbols => "#+=",
-                Space => "Space",
+                Space => "空格",
             }
             .to_string(),
         }
@@ -658,7 +658,7 @@ fn legend(button: UndoFace, word: &str, button_first: bool) -> UndoFace {
     UndoFace { rgba, w, h }
 }
 
-pub const KEYBOARD_HELP_TITLE: &str = "Keyboard Help";
+pub const KEYBOARD_HELP_TITLE: &str = "键盘帮助";
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Shortcut {
@@ -673,12 +673,12 @@ pub enum Shortcut {
 impl Shortcut {
     pub fn label(self) -> &'static str {
         match self {
-            Shortcut::Delete => "Delete",
-            Shortcut::Space => "Space",
-            Shortcut::Shift => "Shift",
-            Shortcut::Cursor => "Cursor",
-            Shortcut::Cancel => "Cancel",
-            Shortcut::Done => "Done",
+            Shortcut::Delete => "删除",
+            Shortcut::Space => "空格",
+            Shortcut::Shift => "大小写",
+            Shortcut::Cursor => "光标",
+            Shortcut::Cancel => "取消",
+            Shortcut::Done => "完成",
         }
     }
 
@@ -726,8 +726,8 @@ pub fn keyboard_faces(kb: &Keyboard, canvas: Canvas) -> KeyboardFaces {
         help_title: title_face(KEYBOARD_HELP_TITLE),
         help_back: hint_face(GUIDE_HELP_HINT.0, GUIDE_HELP_HINT.1),
         legends: [
-            legend(button_face(ButtonLegend::Y), "Cancel", true),
-            legend(button_face(ButtonLegend::Menu), "Help", false),
+            legend(button_face(ButtonLegend::Y), "取消", true),
+            legend(button_face(ButtonLegend::Menu), "帮助", false),
         ],
     }
 }

@@ -244,7 +244,7 @@ fn the_add_screen_draws_stacks_and_the_heading() {
     };
     let shelf = r.frame("add-shelf");
     r.hold(Btn::Y, FAVORITE_HOLD_MS);
-    assert_eq!(r.f.app().choice_names(), ["Puzzlers", "New Collection"]);
+    assert_eq!(r.f.app().choice_names(), ["Puzzlers", "新建合集"]);
     r.settle(60);
     let add = r.frame("add-pair");
     assert!(
@@ -319,8 +319,8 @@ fn moving_draws_the_move_heading() {
     };
     on_puzzlers(&mut r);
     r.tap(Btn::X);
-    assert_eq!(r.f.app().moving(), Some("Move".to_string()));
-    assert_eq!(r.f.app().edit_heading(), Some(("Move".to_string(), true)));
+    assert_eq!(r.f.app().moving(), Some("移动".to_string()));
+    assert_eq!(r.f.app().edit_heading(), Some(("移动".to_string(), true)));
     let px = r.frame("move");
     assert!(
         lit_in(&px, W / 2 - 60..W / 2 + 60, 10..34) > 30,
@@ -338,7 +338,7 @@ fn the_collection_row_names_sit_under_their_stacks() {
         return;
     };
     r.hold(Btn::X, FAVORITE_HOLD_MS);
-    assert!(r.f.app().moving().is_some_and(|m| m.starts_with("Move ")));
+    assert!(r.f.app().moving().is_some_and(|m| m.starts_with("移动")));
     r.settle(60);
     let px = r.frame("move-collection");
     let left = lit_centre(&px, 0..W / 3, 368..392);
@@ -413,7 +413,7 @@ fn moving_a_game_has_no_jumps() {
         return;
     };
     r.tap(Btn::X);
-    assert_eq!(r.f.app().moving(), Some("Move".to_string()));
+    assert_eq!(r.f.app().moving(), Some("移动".to_string()));
     r.step(vec![RawEvent::Down(Btn::Right)], 16);
     let mut last = r.frame("game-pass-0");
     let mut steps = Vec::new();

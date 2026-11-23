@@ -264,7 +264,7 @@ pub fn receipt_face(modules: &[Vec<bool>], text: &ReceiptText) -> UndoFace {
     let mut ink = vec![0.0; PW * PH];
     let side = stamp_code(&mut ink, modules);
     let mut lines = vec![Line {
-        text: "SCAN OR GO TO".into(),
+        text: "扫码或访问".into(),
         px: 18.0,
         gap: 24,
     }];

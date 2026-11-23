@@ -75,7 +75,7 @@ fn the_remembered_shelf_wins_over_recents() {
             ..SlotState::default()
         },
     );
-    assert_eq!(a.shelf_platform_name(), Some("Recents"));
+    assert_eq!(a.shelf_platform_name(), Some("最近游戏"));
     while a.shelf_platform_name() != Some("Game Boy") {
         press(&mut a, Btn::R1);
     }

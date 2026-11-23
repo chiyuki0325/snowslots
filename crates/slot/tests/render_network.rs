@@ -379,7 +379,7 @@ fn the_list_says_it_is_scanning_until_results_arrive_then_offers_other() {
         select(&mut f, slot::networks::SCAN_NETWORKS);
         press(&mut f, Btn::A);
         let s = f.app().network_screen().unwrap();
-        assert_eq!(s.message, Some("Scanning for networks"));
+        assert_eq!(s.message, Some("正在搜索网络"));
         assert!(s.lines.is_empty(), "{panel:?}: rows before the scan");
         let px = frame(&mut f, &mut c);
         dump(&px, &format!("scanning-{}", panel.0));
@@ -452,7 +452,7 @@ fn an_invalid_password_shows_one_line() {
         press(&mut f, Btn::Start);
         assert_eq!(
             f.app().update_text(),
-            Some(("Invalid Password".to_string(), String::new()))
+            Some(("密码无效".to_string(), String::new()))
         );
         for _ in 0..10 {
             let t = f.app().now();

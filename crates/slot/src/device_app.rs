@@ -182,6 +182,7 @@ pub fn run() {
             return;
         }
         let swap_took = swap.elapsed();
+        frontend.library_presented();
         let bottom_began = Instant::now();
         if let Some(pass) = ds.as_ref() {
             let power = frontend.ds_frame().map(|_| frontend.screen_power());

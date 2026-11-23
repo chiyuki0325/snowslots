@@ -254,18 +254,18 @@ impl GameButton {
 
     pub fn label(self) -> &'static str {
         match self {
-            GameButton::Up => "Up",
-            GameButton::Down => "Down",
-            GameButton::Left => "Left",
-            GameButton::Right => "Right",
-            GameButton::A => "A Button",
-            GameButton::B => "B Button",
+            GameButton::Up => "上",
+            GameButton::Down => "下",
+            GameButton::Left => "左",
+            GameButton::Right => "右",
+            GameButton::A => "A键",
+            GameButton::B => "B键",
             GameButton::Select => "Select",
             GameButton::Start => "Start",
-            GameButton::L => "L Button",
-            GameButton::R => "R Button",
-            GameButton::TurboA => "Turbo A",
-            GameButton::TurboB => "Turbo B",
+            GameButton::L => "L键",
+            GameButton::R => "R键",
+            GameButton::TurboA => "A连发",
+            GameButton::TurboB => "B连发",
         }
     }
 
@@ -356,25 +356,25 @@ impl Shortcut {
 
     pub fn label(self) -> &'static str {
         match self {
-            Shortcut::SaveState => "Save State",
-            Shortcut::LoadState => "Load State",
-            Shortcut::Screenshot => "Screenshot",
-            Shortcut::BrightnessUp => "Brightness Up",
-            Shortcut::BrightnessDown => "Brightness Down",
-            Shortcut::BlueLightDown => "Blue Light Down",
-            Shortcut::BlueLightUp => "Blue Light Up",
-            Shortcut::ColorCorrection => "Color Correction",
-            Shortcut::PaletteBack => "Palette Back",
-            Shortcut::PaletteNext => "Palette Next",
-            Shortcut::ShaderNext => "Shader Next",
-            Shortcut::ShaderBack => "Shader Back",
-            Shortcut::FastForward => "Fast Forward",
-            Shortcut::FastForwardToggle => "FF Toggle",
-            Shortcut::Rewind => "Rewind",
-            Shortcut::SunlightUp => "Sunlight Up",
-            Shortcut::SunlightDown => "Sunlight Down",
-            Shortcut::Reset => "Reset Game",
-            Shortcut::Guide => "Guide",
+            Shortcut::SaveState => "保存状态",
+            Shortcut::LoadState => "读取状态",
+            Shortcut::Screenshot => "截图",
+            Shortcut::BrightnessUp => "调高亮度",
+            Shortcut::BrightnessDown => "调低亮度",
+            Shortcut::BlueLightDown => "减少蓝光",
+            Shortcut::BlueLightUp => "增加蓝光",
+            Shortcut::ColorCorrection => "色彩校正",
+            Shortcut::PaletteBack => "上一调色板",
+            Shortcut::PaletteNext => "下一调色板",
+            Shortcut::ShaderNext => "下一滤镜",
+            Shortcut::ShaderBack => "上一滤镜",
+            Shortcut::FastForward => "快速前进",
+            Shortcut::FastForwardToggle => "切换快进",
+            Shortcut::Rewind => "倒带",
+            Shortcut::SunlightUp => "增强阳光",
+            Shortcut::SunlightDown => "减弱阳光",
+            Shortcut::Reset => "重置游戏",
+            Shortcut::Guide => "攻略",
         }
     }
 
@@ -567,12 +567,12 @@ impl CarouselAction {
 
     pub fn label(self) -> &'static str {
         match self {
-            CarouselAction::PreviousShelf => "Previous Shelf",
-            CarouselAction::NextShelf => "Next Shelf",
-            CarouselAction::Favorite => "Favorite",
-            CarouselAction::ForgetRecent => "Remove Recent",
-            CarouselAction::PreviousCollection => "Previous",
-            CarouselAction::NextCollection => "Next",
+            CarouselAction::PreviousShelf => "上一游戏架",
+            CarouselAction::NextShelf => "下一游戏架",
+            CarouselAction::Favorite => "收藏",
+            CarouselAction::ForgetRecent => "移出最近游戏",
+            CarouselAction::PreviousCollection => "上一合集",
+            CarouselAction::NextCollection => "下一合集",
         }
     }
 

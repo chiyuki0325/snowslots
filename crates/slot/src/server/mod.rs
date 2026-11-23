@@ -10,7 +10,7 @@ mod states;
 
 pub use carts::render_once;
 pub use files::{move_path, rename_via_temp};
-pub use games::sweep_names;
+pub use games::{cached_names_need_sweep, sweep_names};
 pub use http::{generate_pin, parse_target, Body, Handler, Reply, Request, Server};
 pub use net::{
     announcement, answer, claims, conflicts, heard, mdns_off, model_name, names, probe, respond,

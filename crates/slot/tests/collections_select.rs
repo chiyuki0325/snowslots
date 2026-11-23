@@ -219,7 +219,7 @@ fn holding_y_opens_the_add_screen_with_that_game() {
     hold_y(&mut a);
     assert!(choosing(&a));
     assert_eq!(a.picked_count(), Some(1));
-    assert_eq!(a.choice_names(), ["Puzzlers", "New Collection", "Empty"]);
+    assert_eq!(a.choice_names(), ["Puzzlers", "新建合集", "Empty"]);
     assert!(!read_slot_state(d.path())
         .favorites
         .contains(&game(Platform::Gba, "Fusion")));
@@ -229,7 +229,7 @@ fn holding_y_opens_the_add_screen_with_that_game() {
 fn tapping_y_still_favorites_on_a_collection_shelf() {
     let d = card();
     let mut a = boot_with(d.path(), one_favorite());
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::R2);
     assert_eq!(a.shelf_platform_name(), Some("Puzzlers"));
     assert_eq!(a.selected_stem(), Some("Apotris"));
@@ -248,7 +248,7 @@ fn left_and_right_pick_and_wrap() {
     let mut a = boot_with(d.path(), one_favorite());
     on_cart(&mut a, "Game Boy Advance", "Fusion");
     hold_y(&mut a);
-    assert_eq!(a.picked_choice(), Some("New Collection"));
+    assert_eq!(a.picked_choice(), Some("新建合集"));
     press(&mut a, Btn::Right);
     assert_eq!(a.picked_choice(), Some("Empty"));
     press(&mut a, Btn::Right);
@@ -273,7 +273,7 @@ fn a_adds_and_returns_to_the_cart_you_were_on() {
     assert_eq!(a.shelf_platform_name(), Some("Game Boy Advance"));
     assert_eq!(a.selected_stem(), Some("Fusion"));
     assert_eq!(a.toast(), Some(Toast::Collection));
-    assert_eq!(a.collection_said().unwrap().1, "Added to Puzzlers");
+    assert_eq!(a.collection_said().unwrap().1, "已加入Puzzlers");
 }
 
 #[test]
@@ -286,7 +286,7 @@ fn the_screen_opens_on_new_collection_after_adding_to_one() {
     press(&mut a, Btn::A);
     on_cart(&mut a, "Game Boy Advance", "Apotris");
     hold_y(&mut a);
-    assert_eq!(a.picked_choice(), Some("New Collection"));
+    assert_eq!(a.picked_choice(), Some("新建合集"));
 }
 
 #[test]
@@ -304,7 +304,7 @@ fn three_ticked_with_one_already_in_adds_two() {
         read(d.path(), "Puzzlers.txt"),
         "gba/Apotris\ngb/Catrap\ngba/Drill Dozer\ngba/Fusion\n"
     );
-    assert_eq!(a.collection_said().unwrap().1, "Added 2 to Puzzlers");
+    assert_eq!(a.collection_said().unwrap().1, "已将2个游戏加入Puzzlers");
 }
 
 #[test]
@@ -315,7 +315,7 @@ fn a_collection_holding_every_ticked_game_is_not_offered() {
     check_on(&mut a, "Game Boy", "Catrap");
     check_on(&mut a, "Game Boy Advance", "Apotris");
     press(&mut a, Btn::Start);
-    assert_eq!(a.choice_names(), ["Empty", "New Collection"]);
+    assert_eq!(a.choice_names(), ["Empty", "新建合集"]);
 }
 
 #[test]
@@ -401,7 +401,7 @@ fn new_collection_names_and_adds() {
     let mut a = boot_with(d.path(), one_favorite());
     on_cart(&mut a, "Game Boy Advance", "Fusion");
     hold_y(&mut a);
-    to_choice(&mut a, "New Collection");
+    to_choice(&mut a, "新建合集");
     press(&mut a, Btn::A);
     assert!(a.keyboard().is_some());
     type_text(&mut a, "racing");
@@ -409,7 +409,7 @@ fn new_collection_names_and_adds() {
     assert!(a.keyboard().is_none());
     assert_eq!(read(d.path(), "racing.txt"), "gba/Fusion\n");
     assert_eq!(read(d.path(), "order.txt"), "Puzzlers\nEmpty\nracing\n");
-    assert_eq!(a.collection_said().unwrap().1, "Added to racing");
+    assert_eq!(a.collection_said().unwrap().1, "已加入racing");
     assert!(a.edit().is_none());
     assert_eq!(a.shelf_platform_name(), Some("Game Boy Advance"));
     assert_eq!(a.selected_stem(), Some("Fusion"));
@@ -418,7 +418,7 @@ fn new_collection_names_and_adds() {
 fn to_keyboard(a: &mut App) {
     on_cart(a, "Game Boy Advance", "Fusion");
     hold_y(a);
-    to_choice(a, "New Collection");
+    to_choice(a, "新建合集");
     press(a, Btn::A);
 }
 
@@ -434,10 +434,7 @@ fn a_bad_name_keeps_the_keyboard_open() {
     assert_ne!(a.toast(), Some(Toast::Collection));
     let kb = a.keyboard().unwrap();
     assert_eq!(kb.text(), "order");
-    assert_eq!(
-        kb.subtitle(),
-        Some("Name not allowed, use a different name")
-    );
+    assert_eq!(kb.subtitle(), Some("名称不可用，请换一个名字"));
 }
 
 #[test]
@@ -455,10 +452,7 @@ fn a_name_already_taken_says_so() {
     assert_eq!((kb.row(), kb.col()), at, "the selected key moved");
     assert!(kb.alert());
     assert_eq!(kb.text(), "empty");
-    assert_eq!(
-        kb.subtitle(),
-        Some("Name already exists, use a different name")
-    );
+    assert_eq!(kb.subtitle(), Some("名称已存在，请换一个名字"));
 }
 
 #[test]
@@ -469,7 +463,7 @@ fn cancelling_the_keyboard_returns_to_the_add_screen() {
     press(&mut a, Btn::Y);
     assert!(a.keyboard().is_none());
     assert!(choosing(&a));
-    assert_eq!(a.picked_choice(), Some("New Collection"));
+    assert_eq!(a.picked_choice(), Some("新建合集"));
 }
 
 #[test]
@@ -552,7 +546,7 @@ fn the_picked_collection_shows_its_art_and_new_collection_shows_yours() {
         a.shown_wallpaper().as_deref(),
         Some("Collections/Empty.png")
     );
-    to_choice(&mut a, "New Collection");
+    to_choice(&mut a, "新建合集");
     assert_eq!(a.shown_wallpaper().as_deref(), Some("duck.png"));
 }
 

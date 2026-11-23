@@ -338,7 +338,7 @@ fn undoing_a_load_from_states_lands_in_the_game_with_no_menu() {
     press(&mut a, Btn::A);
     go_to(&mut a, QuickRow::States);
     press(&mut a, Btn::A);
-    assert_eq!(a.undo_label(), Some("undo load"));
+    assert_eq!(a.undo_label(), Some("撤销读取"));
     press(&mut a, Btn::X);
     assert!(matches!(a.phase(), Phase::Playing { .. }));
     assert_eq!(a.in_game_menu(), None);

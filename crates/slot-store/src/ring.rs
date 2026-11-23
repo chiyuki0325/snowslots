@@ -24,13 +24,12 @@ pub struct StateRing {
 
 impl StateRing {
     pub fn new(root: &Path, platform: Platform, core: Core, stem: &str) -> Self {
-        StateRing {
-            dir: root
-                .join("States")
-                .join(platform.dir_name())
-                .join(core.as_str())
-                .join(stem),
-        }
+        let base = root
+            .join("States")
+            .join(platform.dir_name())
+            .join(core.as_str());
+        let dir = crate::scan::find_dir_by_name(&base, stem).unwrap_or_else(|| base.join(stem));
+        StateRing { dir }
     }
 
     pub fn push(&self, state: &[u8], thumb_png: &[u8], stamp: &str) -> std::io::Result<()> {

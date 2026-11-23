@@ -36,10 +36,7 @@ fn a_missing_gauge_is_not_drawn_as_empty() {
         !all.contains("0%"),
         "no gauge was drawn as a flat battery: {all}"
     );
-    assert!(
-        all.contains("BATTERY"),
-        "the row should still be there: {all}"
-    );
+    assert!(all.contains("电池"), "the row should still be there: {all}");
 }
 
 #[test]
@@ -49,8 +46,9 @@ fn the_compliance_block_is_the_credits() {
         "MGBA",
         "GPSP",
         "GAMBATTE",
-        "BASEOS BY PVAIBHAV",
-        "OPEN SANS",
+        "PVAIBHAV",
+        "BASEOS",
+        "寒蝉全圆体",
         "NERD",
         "LCD3X",
         "MARKUS",
@@ -100,7 +98,7 @@ fn the_wordmarks_top_edge_is_antialiased_not_a_hard_step() {
 #[test]
 fn the_version_rides_above_the_readme_line() {
     let lines = sticker_lines(&fields());
-    let home = lines.iter().position(|l| l == "SEE README.").unwrap();
+    let home = lines.iter().position(|l| l == "详见README。").unwrap();
     assert_eq!(lines[home - 1], "VERSION 0.1.0");
 }
 
@@ -110,7 +108,7 @@ fn the_baseos_version_sits_under_slots() {
         baseos: Some("1.5.2"),
         ..fields()
     });
-    let home = lines.iter().position(|l| l == "SEE README.").unwrap();
+    let home = lines.iter().position(|l| l == "详见README。").unwrap();
     assert_eq!(lines[home - 2..home], ["VERSION 0.1.0", "BASEOS 1.5.2"]);
 }
 
@@ -183,7 +181,7 @@ fn the_ds_label_carries_the_same_facts_as_the_sp_label() {
         "DSPERATE",
         "MARKUS",
         "LCD3X",
-        "MADE IN ITHACA",
+        "伊萨卡制造",
         "S/LOT-USA",
         "RUSS APPROVED",
         "FOR CONSUMER SERVICE: SLOT-CFW.FYI",

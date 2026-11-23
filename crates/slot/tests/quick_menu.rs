@@ -603,8 +603,8 @@ fn tools_sits_between_screen_and_system() {
     let at = |row| QuickRow::MAIN.iter().position(|r| *r == row);
     assert_eq!(at(QuickRow::Network), at(QuickRow::Screen).map(|i| i + 1));
     assert_eq!(at(QuickRow::System), at(QuickRow::Network).map(|i| i + 1));
-    assert_eq!(QuickRow::Network.label(), "Tools");
-    assert_eq!(QuickRow::General.label(), "Shelf");
+    assert_eq!(QuickRow::Network.label(), "工具");
+    assert_eq!(QuickRow::General.label(), "游戏架");
     assert_eq!(QuickRow::WIFI, [QuickRow::WifiPower, QuickRow::Networks]);
     assert_eq!(QuickRow::GENERAL.last(), Some(&QuickRow::KidShelf));
     let (_d, mut a, _) = on_carousel();
@@ -633,12 +633,12 @@ fn tools_holds_the_online_tools() {
         [
             "Gamebit",
             "RomM",
-            "Fetch Missing Art",
+            "下载缺失封面",
             #[cfg(feature = "nds")]
-            "Fetch Box Art",
+            "下载包装封面",
         ]
     );
-    assert_eq!(QuickRow::WIFI.map(QuickRow::label), ["Wi-Fi", "Network"]);
+    assert_eq!(QuickRow::WIFI.map(QuickRow::label), ["Wi-Fi", "网络"]);
     assert!(!QuickRow::GENERAL.contains(&QuickRow::FetchArt));
     assert_eq!(QuickRow::FetchArt.parent(), Some(QuickRow::Network));
     assert_eq!(QuickRow::Wifi.parent(), Some(QuickRow::System));
@@ -648,12 +648,12 @@ fn tools_holds_the_online_tools() {
     common::connect(&mut a);
     for row in QuickRow::NETWORK {
         let shown =
-            (row != QuickRow::Romm || cfg!(feature = "romm")) && row.label() != "Fetch Box Art";
+            (row != QuickRow::Romm || cfg!(feature = "romm")) && row.label() != "下载包装封面";
         assert_eq!(!a.hidden_rows().contains(&row), shown, "{row:?}");
     }
 }
 
-const NO_NETWORK: &str = "Not connected";
+const NO_NETWORK: &str = "未连接网络";
 
 #[test]
 fn tools_opens_without_wifi_and_its_rows_show_the_message() {
@@ -775,9 +775,9 @@ fn the_network_row_waits_for_wlan0() {
 #[test]
 fn the_networks_row_says_off_or_not_connected() {
     let (_d, mut a, _) = on_carousel();
-    assert_eq!(a.networks_value(), "Not Connected");
+    assert_eq!(a.networks_value(), "未连接");
     a.set_wifi_off(true);
-    assert_eq!(a.networks_value(), "Off");
+    assert_eq!(a.networks_value(), "关");
 }
 
 #[test]

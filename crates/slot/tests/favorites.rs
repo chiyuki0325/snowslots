@@ -79,10 +79,10 @@ fn y_on_the_shelf_hearts_the_cart_and_saves_it_without_a_banner() {
 fn the_favorites_shelf_only_shows_once_something_is_hearted() {
     let d = card();
     let mut a = boot_with(d.path(), SlotState::default());
-    assert!(!names(&mut a).iter().any(|n| n == "Favorites"));
+    assert!(!names(&mut a).iter().any(|n| n == "收藏"));
     go_to(&mut a, "Game Boy");
     press(&mut a, Btn::Y);
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     assert_eq!(a.selected_stem(), Some("Tetris"));
 }
 
@@ -100,7 +100,7 @@ fn favorites_from_every_system_share_one_shelf_in_name_order() {
             ..SlotState::default()
         },
     );
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     let mut seen = Vec::new();
     for _ in 0..3 {
         seen.push(a.selected_stem().unwrap().to_string());
@@ -126,11 +126,11 @@ fn unhearting_on_the_favorites_shelf_takes_the_cart_off_it() {
             ..SlotState::default()
         },
     );
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     assert_eq!(a.selected_stem(), Some("Emerald"));
     press(&mut a, Btn::Y);
     assert_eq!(a.toast(), None);
-    assert_eq!(a.shelf_platform_name(), Some("Favorites"));
+    assert_eq!(a.shelf_platform_name(), Some("收藏"));
     assert_eq!(a.selected_stem(), Some("Tetris"));
     assert_eq!(
         read_slot_state(d.path()).favorites,
@@ -148,11 +148,11 @@ fn unhearting_the_last_favorite_leaves_the_empty_shelf() {
             ..SlotState::default()
         },
     );
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     press(&mut a, Btn::Y);
-    assert_ne!(a.shelf_platform_name(), Some("Favorites"));
+    assert_ne!(a.shelf_platform_name(), Some("收藏"));
     assert!(read_slot_state(d.path()).favorites.is_empty());
-    assert!(!names(&mut a).iter().any(|n| n == "Favorites"));
+    assert!(!names(&mut a).iter().any(|n| n == "收藏"));
 }
 
 #[test]
@@ -168,6 +168,6 @@ fn a_favorite_whose_rom_is_gone_is_left_off_the_shelf() {
             ..SlotState::default()
         },
     );
-    go_to(&mut a, "Favorites");
+    go_to(&mut a, "收藏");
     assert_eq!(a.selected_stem(), Some("Fusion"));
 }

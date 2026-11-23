@@ -15,10 +15,10 @@ pub enum Failure {
 impl Failure {
     pub fn label(&self) -> &'static str {
         match self {
-            Failure::WrongPassword => "Wrong Password",
-            Failure::NotFound => "Not Found",
-            Failure::NoIp => "No IP Address",
-            Failure::Other => "Could Not Connect",
+            Failure::WrongPassword => "密码错误",
+            Failure::NotFound => "未找到网络",
+            Failure::NoIp => "未获取到IP地址",
+            Failure::Other => "无法连接",
         }
     }
 }
@@ -35,10 +35,10 @@ pub enum Phase {
 impl Phase {
     pub fn label(&self) -> &'static str {
         match self {
-            Phase::Connecting => "Connecting",
-            Phase::Authenticating => "Authenticating",
-            Phase::GettingIp => "Getting IP",
-            Phase::Connected => "Connected",
+            Phase::Connecting => "正在连接",
+            Phase::Authenticating => "正在验证",
+            Phase::GettingIp => "正在获取IP地址",
+            Phase::Connected => "已连接",
             Phase::Failed(f) => f.label(),
         }
     }

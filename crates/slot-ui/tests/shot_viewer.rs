@@ -125,9 +125,9 @@ fn labels(v: &ShotViewer) -> Vec<&'static str> {
 #[test]
 fn each_mode_has_its_legend() {
     let mut v = viewer(2);
-    assert_eq!(labels(&v), ["View", "Back", "Delete", "Multi"]);
+    assert_eq!(labels(&v), ["查看", "返回", "删除", "多选"]);
     v.open();
-    assert_eq!(labels(&v), ["Zoom", "Back", "Delete"]);
+    assert_eq!(labels(&v), ["放大", "返回", "删除"]);
 }
 
 #[test]
@@ -394,10 +394,10 @@ fn zoomed_shows_the_position_box_not_the_count() {
 fn the_zoomed_legend_drops_zoom_at_four() {
     let mut v = full(720, 480);
     v.zoom_in(C720);
-    assert_eq!(labels(&v), ["Pan", "Zoom", "Zoom Out"]);
+    assert_eq!(labels(&v), ["平移", "放大", "缩小"]);
     v.zoom_in(C720);
     v.zoom_in(C720);
-    assert_eq!(labels(&v), ["Pan", "Zoom Out"]);
+    assert_eq!(labels(&v), ["平移", "缩小"]);
 }
 
 #[test]
@@ -419,7 +419,7 @@ fn the_pan_hint_is_drawn_at_its_arrows_width() {
     v.zoom_in(C720);
     let out = drawn(&v, C720);
     let (.., w, _) = tex_at(&out, TexId::from_raw(204)).expect("no pan hint");
-    assert_eq!(w, slot_ui::pad_hint_width("Pan") as f32);
+    assert_eq!(w, slot_ui::pad_hint_width("平移") as f32);
 }
 
 #[test]
@@ -513,9 +513,9 @@ fn removing_the_ticked_keeps_the_rest_and_leaves_multi_select() {
 #[test]
 fn the_multi_select_legend() {
     let mut v = viewer(3);
-    assert_eq!(labels(&v), ["View", "Back", "Delete", "Multi"]);
+    assert_eq!(labels(&v), ["查看", "返回", "删除", "多选"]);
     v.toggle_selecting();
-    assert_eq!(labels(&v), ["Tick", "Delete", "Done"]);
+    assert_eq!(labels(&v), ["勾选", "删除", "完成"]);
 }
 
 #[test]

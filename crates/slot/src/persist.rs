@@ -1,7 +1,9 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use slot_store::{atomic_write, write_slot_state, Core, Platform, SlotState, StateRing};
+use slot_store::{
+    atomic_write, find_file_by_stem, write_slot_state, Core, Platform, SlotState, StateRing,
+};
 
 pub trait Snapshot {
     fn state(&self) -> Option<Vec<u8>>;
@@ -71,9 +73,9 @@ pub fn write_sav(root: &Path, platform: Platform, stem: &str, sav: &[u8]) -> std
 }
 
 pub fn read_sav(root: &Path, platform: Platform, stem: &str) -> std::io::Result<Option<Vec<u8>>> {
-    let srm = crate::root::saves_dir(root)
-        .join(platform.dir_name())
-        .join(format!("{stem}.srm"));
+    let dir = crate::root::saves_dir(root).join(platform.dir_name());
+    let srm =
+        find_file_by_stem(&dir, stem, "srm").unwrap_or_else(|| dir.join(format!("{stem}.srm")));
     for path in [sav_path(root, platform, stem), srm] {
         match std::fs::read(&path) {
             Ok(bytes) if bytes.starts_with(RZIP_MAGIC) => return unrzip(&bytes).map(Some),
@@ -116,7 +118,6 @@ pub fn read_resume(
 }
 
 fn sav_path(root: &Path, platform: Platform, stem: &str) -> PathBuf {
-    crate::root::saves_dir(root)
-        .join(platform.dir_name())
-        .join(format!("{stem}.sav"))
+    let dir = crate::root::saves_dir(root).join(platform.dir_name());
+    find_file_by_stem(&dir, stem, "sav").unwrap_or_else(|| dir.join(format!("{stem}.sav")))
 }

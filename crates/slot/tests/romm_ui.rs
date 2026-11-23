@@ -60,14 +60,14 @@ fn shown(a: &App, page: &[QuickRow]) -> Vec<QuickRow> {
 #[test]
 fn romm_row_reads_setup_until_paired() {
     let (_d, a) = booted();
-    assert_eq!(a.romm_texts()[0], "SETUP");
+    assert_eq!(a.romm_texts()[0], "设置");
 }
 
 #[test]
 fn romm_row_reads_offline_when_paired_and_not_yet_heard_from() {
     let (_d, mut a) = booted();
     pair(&mut a);
-    assert_eq!(a.romm_texts()[0], "OFFLINE");
+    assert_eq!(a.romm_texts()[0], "离线");
     assert_eq!(a.romm_texts()[1], "romm.local");
 }
 
@@ -78,9 +78,9 @@ fn tools_lists_romm_after_gamebit() {
         [
             "Gamebit",
             "RomM",
-            "Fetch Missing Art",
+            "下载缺失封面",
             #[cfg(feature = "nds")]
-            "Fetch Box Art",
+            "下载包装封面",
         ]
     );
     let (_d, mut a) = booted();
@@ -99,7 +99,7 @@ fn setup_rows_in_order() {
             .into_iter()
             .map(QuickRow::label)
             .collect::<Vec<_>>(),
-        ["Protocol", "Server", "Port", "Accept Self-Signed", "Pair"]
+        ["协议", "服务器", "端口", "接受自签名证书", "配对"]
     );
 }
 
@@ -144,7 +144,7 @@ fn port_rejects_above_65535() {
     assert!(a.keyboard().is_some());
     assert_eq!(
         a.update_text(),
-        Some(("Invalid Port".to_string(), String::new()))
+        Some(("端口无效".to_string(), String::new()))
     );
     assert_eq!(a.romm.port, None);
     assert_eq!(RommConf::load(d.path()).port, None);
@@ -182,7 +182,7 @@ fn pair_refuses_an_empty_server() {
     open_at(&mut a, QuickRow::RommPair);
     press(&mut a, Btn::A);
     let (title, _) = a.update_text().expect("a message");
-    assert_eq!(title, "Enter a server first");
+    assert_eq!(title, "请先填写服务器");
 }
 
 #[test]
@@ -269,7 +269,13 @@ fn pair_screen_shows_code_and_b_cancels() {
     );
     assert_eq!(
         texts(&a),
-        ["Scan with", "Your phone", "Or enter", "K7M2QX9P", "Waiting"]
+        [
+            "请用手机",
+            "扫描二维码",
+            "或输入配对码",
+            "K7M2QX9P",
+            "等待配对"
+        ]
     );
     press(&mut a, Btn::B);
     assert_eq!(a.quick_menu(), Some(QuickRow::RommPair));
@@ -289,11 +295,11 @@ fn expired_offers_retry() {
         .unwrap()
         .push(RommEvent::PairFailed(PairFail::Expired));
     pump(&mut a);
-    assert_eq!(texts(&a), ["Pairing", "expired"]);
+    assert_eq!(texts(&a), ["配对码", "已过期"]);
     assert!(a.pair_view().unwrap().url.is_none());
     press(&mut a, Btn::A);
     assert!(matches!(a.phase(), Phase::RommPair));
-    assert_eq!(texts(&a), ["Connecting"]);
+    assert_eq!(texts(&a), ["正在连接"]);
     let asked = script.asked.lock().unwrap();
     assert_eq!(asked.len(), 2);
     assert!(matches!(asked[1], RommJob::Pair(_)));
@@ -597,13 +603,13 @@ fn unpaired_on_the_shelf_stays_on_the_shelf() {
 #[test]
 fn romm_row_follows_whether_the_server_answers() {
     let (_d, mut a, script) = paired_on_the_shelf();
-    assert_eq!(a.romm_texts()[0], "OFFLINE");
+    assert_eq!(a.romm_texts()[0], "离线");
     script.events.lock().unwrap().push(RommEvent::Online(true));
     pump(&mut a);
-    assert_eq!(a.romm_texts()[0], "ONLINE");
+    assert_eq!(a.romm_texts()[0], "在线");
     script.events.lock().unwrap().push(RommEvent::Online(false));
     pump(&mut a);
-    assert_eq!(a.romm_texts()[0], "OFFLINE");
+    assert_eq!(a.romm_texts()[0], "离线");
 }
 
 #[test]
@@ -613,13 +619,13 @@ fn romm_row_reads_setup_again_after_unpairing() {
     pump(&mut a);
     script.events.lock().unwrap().push(RommEvent::Unpaired);
     pump(&mut a);
-    assert_eq!(a.romm_texts()[0], "SETUP");
+    assert_eq!(a.romm_texts()[0], "设置");
 }
 
 #[test]
 fn a_note_shows_in_status_until_cleared() {
     let (_d, mut a, script) = paired_on_the_shelf();
-    assert_eq!(a.romm_texts()[3], "Paired");
+    assert_eq!(a.romm_texts()[3], "已配对");
     script
         .events
         .lock()
@@ -629,5 +635,5 @@ fn a_note_shows_in_status_until_cleared() {
     assert_eq!(a.romm_texts()[3], "Off");
     script.events.lock().unwrap().push(RommEvent::NoteCleared);
     pump(&mut a);
-    assert_eq!(a.romm_texts()[3], "Paired");
+    assert_eq!(a.romm_texts()[3], "已配对");
 }

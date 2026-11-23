@@ -674,7 +674,7 @@ fn says_waiting_for_a_friend_up_top(px: &[u8], what: &str) {
 #[test]
 fn both_radio_steps_say_waiting_for_a_friend() {
     for step in LinkStep::ALL {
-        assert_eq!(step.line(), "Waiting for a friend", "{step:?}");
+        assert_eq!(step.line(), "正在等待其他玩家", "{step:?}");
     }
 }
 
@@ -938,13 +938,13 @@ fn a_dropped_wireless_link_says_it_lost_the_connection() {
     let (sprites, _) = sprites_and_faces();
     assert!(drew(&out, sprites.adapter), "no adapter over the failure");
     assert_ne!(
-        sentence_ink("Lost the connection"),
-        sentence_ink("The cable came loose"),
+        sentence_ink("连接已断开"),
+        sentence_ink("连接线已断开"),
         "the two sentences carry the same ink, so the frame below proves nothing"
     );
     assert_eq!(
         ink(&line),
-        sentence_ink("Lost the connection"),
+        sentence_ink("连接已断开"),
         "a dropped adapter link does not say Lost the connection"
     );
     let (first, last) = inked_rows(&line);
@@ -961,7 +961,7 @@ fn a_dropped_cable_link_says_the_cable_came_loose() {
     assert!(drew(&out, sprites.plug_host), "no plug over the failure");
     assert_eq!(
         ink(&line),
-        sentence_ink("The cable came loose"),
+        sentence_ink("连接线已断开"),
         "a dropped cable link does not say The cable came loose"
     );
 }

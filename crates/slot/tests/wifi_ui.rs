@@ -409,7 +409,7 @@ fn the_networks_row_waits_for_an_address() {
     join_home(&mut a);
     assert_eq!(a.wifi().status.state, slot::wifi::State::Completed);
     assert!(!a.wifi_up());
-    assert_eq!(a.networks_value(), "Not Connected");
+    assert_eq!(a.networks_value(), "未连接");
     no_lease.store(false, std::sync::atomic::Ordering::SeqCst);
     settle(&mut a);
     assert!(a.wifi_up());
@@ -421,11 +421,11 @@ fn the_networks_row_names_the_joined_network() {
     let _g = serial();
     let (_d, mut a, _log) = on_shelf();
     settle(&mut a);
-    assert_eq!(a.networks_value(), "Not Connected");
+    assert_eq!(a.networks_value(), "未连接");
     join_home(&mut a);
     assert_eq!(a.networks_value(), "Home");
     a.set_wifi_off(true);
-    assert_eq!(a.networks_value(), "Off");
+    assert_eq!(a.networks_value(), "关");
 }
 
 #[test]

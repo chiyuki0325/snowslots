@@ -260,6 +260,16 @@ fn the_thread_runs_dry_without_lying_about_it() {
 }
 
 #[test]
+fn finishing_a_snapshot_allows_the_next_capture() {
+    let rewind = RewindThread::spawn(1024 * 1024);
+    for index in 0..3 {
+        let state = synthetic_state(index);
+        assert!(rewind.try_record(|| Some(state.clone())));
+        assert_eq!(rewind.pop(), Some(state));
+    }
+}
+
+#[test]
 fn the_thread_publishes_its_fill() {
     let r = RewindThread::spawn(256 * 1024);
     for i in 0..400u32 {

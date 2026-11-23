@@ -209,7 +209,7 @@ fn screenshot_defaults_to_select_x() {
         c.get(Shortcut::Screenshot),
         with(Modifier::Select, Device::X)
     );
-    assert_eq!(Shortcut::Screenshot.label(), "Screenshot");
+    assert_eq!(Shortcut::Screenshot.label(), "截图");
     for other in Shortcut::ALL
         .into_iter()
         .filter(|s| *s != Shortcut::Screenshot)
@@ -242,7 +242,7 @@ fn fast_forward_toggle_starts_unbound_and_round_trips_through_the_file() {
         ShortcutKeys::default().get(Shortcut::FastForwardToggle),
         None
     );
-    assert_eq!(Shortcut::FastForwardToggle.label(), "FF Toggle");
+    assert_eq!(Shortcut::FastForwardToggle.label(), "切换快进");
     let d = card();
     let mut keys = ShortcutKeys::default();
     keys.set(Shortcut::FastForwardToggle, plain(Device::R1));
@@ -281,8 +281,8 @@ fn other_shortcuts_may_still_share_a_binding() {
 #[test]
 fn the_sunlight_shortcuts_start_unbound_and_round_trip_through_the_file() {
     for (shortcut, label, key) in [
-        (Shortcut::SunlightUp, "Sunlight Up", "sunlight_up=r1"),
-        (Shortcut::SunlightDown, "Sunlight Down", "sunlight_down=r1"),
+        (Shortcut::SunlightUp, "增强阳光", "sunlight_up=r1"),
+        (Shortcut::SunlightDown, "减弱阳光", "sunlight_down=r1"),
     ] {
         assert_eq!(ShortcutKeys::default().get(shortcut), None);
         assert_eq!(shortcut.label(), label);
@@ -299,7 +299,7 @@ fn the_sunlight_shortcuts_start_unbound_and_round_trip_through_the_file() {
 #[test]
 fn reset_starts_unbound_and_round_trips_through_the_file() {
     assert_eq!(ShortcutKeys::default().get(Shortcut::Reset), None);
-    assert_eq!(Shortcut::Reset.label(), "Reset Game");
+    assert_eq!(Shortcut::Reset.label(), "重置游戏");
     let d = card();
     let mut keys = ShortcutKeys::default();
     keys.set(Shortcut::Reset, plain(Device::R1));
