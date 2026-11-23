@@ -443,6 +443,24 @@ fn heard_per_present(emu: &EmuHandle, sink: &StubSink, heard: &AtomicUsize) -> f
 }
 
 #[test]
+fn fast_forward_pitch_keeps_audio_at_real_time_length() {
+    let (emu, sink, heard) = spawn_heard();
+    assert!(!emu.ff_pitch());
+    emu.set_ff_sound(true);
+    emu.set_ff_pitch(true);
+    assert!(emu.ff_pitch());
+    emu.set_fast_quarters(16);
+    let per = heard_per_present(&emu, &sink, &heard);
+    assert!(
+        (per - 32_768.0 / 60.0).abs() < 100.0,
+        "{per} frames per present"
+    );
+    emu.set_ff_sound(false);
+    emu.set_speed(Speed::Fast);
+    assert!(wait_for(|| sink.muted()));
+}
+
+#[test]
 fn fast_forward_is_silent_while_its_sound_is_off() {
     let (emu, sink, heard) = spawn_heard();
     emu.set_ff_sound(false);

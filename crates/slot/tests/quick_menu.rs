@@ -282,6 +282,23 @@ fn fast_forward_steps_through_its_speeds_wraps_at_both_ends_and_saves_each_one()
 }
 
 #[test]
+fn fast_forward_pitch_flips_and_persists_without_enabling_sound() {
+    let (root, mut app, _) = on_carousel();
+    assert!(!app.ff_pitch());
+    open_at(&mut app, QuickRow::FastForwardPitch);
+    press(&mut app, Btn::Right);
+    assert!(app.ff_pitch());
+    assert!(!app.ff_sound());
+    assert_eq!(
+        app.quick_value(QuickRow::FastForwardPitch),
+        Some(QuickValue::On)
+    );
+    assert!(read_slot_state(root.path()).ff_pitch);
+    press(&mut app, Btn::Left);
+    assert!(!read_slot_state(root.path()).ff_pitch);
+}
+
+#[test]
 fn rumble_and_fast_forward_sound_flip_on_either_arrow_and_save() {
     let (d, mut a, _) = on_carousel();
     let card = |d: &TempDir| {

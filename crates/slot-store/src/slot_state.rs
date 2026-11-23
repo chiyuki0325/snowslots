@@ -450,6 +450,7 @@ pub struct SlotState {
     pub rumble: bool,
     pub ff_speed: u8,
     pub ff_sound: bool,
+    pub ff_pitch: bool,
     pub colour_correction_gba: bool,
     pub colour_correction_gb: bool,
     pub colour_correction_gbc: bool,
@@ -639,6 +640,7 @@ impl Default for SlotState {
             rumble: true,
             ff_speed: FF_SPEED_DEFAULT,
             ff_sound: false,
+            ff_pitch: false,
             colour_correction_gba: false,
             colour_correction_gb: false,
             colour_correction_gbc: false,
@@ -747,7 +749,7 @@ fn write_list(root: &Path, name: &str, list: &[Recent]) -> std::io::Result<()> {
 
 pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
     let mut text = format!(
-        "cart={}\ncart_platform={}\nbrightness={}\nblue_light={}\nvolume={}\nvolume_hp={}\nmuted={}\nmuted_hp={}\nclock_set={}\nzone={}\nclock_24h={}\nnetwork_time={}\nrumble={}\nff_speed={}\nff_sound={}\ncolour_correction_gba={}\ncolour_correction_gb={}\nshader_gba={}\nshader_gb={}\nrewind={}\ngb_palettes={}\ngb_palette={}\nappearance={}\nwallpaper={}\n",
+        "cart={}\ncart_platform={}\nbrightness={}\nblue_light={}\nvolume={}\nvolume_hp={}\nmuted={}\nmuted_hp={}\nclock_set={}\nzone={}\nclock_24h={}\nnetwork_time={}\nrumble={}\nff_speed={}\nff_sound={}\nff_pitch={}\ncolour_correction_gba={}\ncolour_correction_gb={}\nshader_gba={}\nshader_gb={}\nrewind={}\ngb_palettes={}\ngb_palette={}\nappearance={}\nwallpaper={}\n",
         s.cart.as_deref().unwrap_or(""),
         s.cart_platform.map_or(String::new(), platform_key),
         s.brightness,
@@ -763,6 +765,7 @@ pub fn write_slot_state(root: &Path, s: &SlotState) -> std::io::Result<()> {
         s.rumble as u8,
         ff_speed_text(s.ff_speed),
         s.ff_sound as u8,
+        s.ff_pitch as u8,
         s.colour_correction_gba as u8,
         s.colour_correction_gb as u8,
         s.shader_gba.name(),
@@ -878,6 +881,7 @@ fn parse(text: &str) -> Option<SlotState> {
     let mut rumble = None;
     let mut ff_speed = None;
     let mut ff_sound = None;
+    let mut ff_pitch = None;
     let mut colour_correction = None;
     let mut colour_correction_gba = None;
     let mut colour_correction_gb = None;
@@ -950,6 +954,7 @@ fn parse(text: &str) -> Option<SlotState> {
             "rumble" => rumble = flag(value),
             "ff_speed" => ff_speed = ff_speed_value(value),
             "ff_sound" => ff_sound = flag(value),
+            "ff_pitch" => ff_pitch = flag(value),
             "colour_correction" => colour_correction = flag(value),
             "colour_correction_gba" => colour_correction_gba = flag(value),
             "colour_correction_gb" => colour_correction_gb = flag(value),
@@ -1022,6 +1027,7 @@ fn parse(text: &str) -> Option<SlotState> {
         rumble: rumble.unwrap_or(fallback.rumble),
         ff_speed: ff_speed.unwrap_or(fallback.ff_speed),
         ff_sound: ff_sound.unwrap_or(fallback.ff_sound),
+        ff_pitch: ff_pitch.unwrap_or(fallback.ff_pitch),
         colour_correction_gba: colour_correction_gba
             .or(colour_correction)
             .unwrap_or(fallback.colour_correction_gba),

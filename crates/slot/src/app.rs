@@ -2744,6 +2744,7 @@ impl App {
             hidden.extend([
                 QuickRow::FastForward,
                 QuickRow::FastForwardSound,
+                QuickRow::FastForwardPitch,
                 QuickRow::Rewind,
                 QuickRow::Shader,
             ]);
@@ -2910,6 +2911,7 @@ impl App {
             QuickRow::ScreenGeneral => None,
             QuickRow::FastForward => QuickValue::speed(self.state.ff_speed),
             QuickRow::FastForwardSound => Some(QuickValue::flag(self.state.ff_sound)),
+            QuickRow::FastForwardPitch => Some(QuickValue::flag(self.state.ff_pitch)),
             QuickRow::GbaColourCorrection => {
                 Some(QuickValue::flag(self.state.colour_correction_gba))
             }
@@ -4963,6 +4965,10 @@ impl App {
         self.state.ff_sound
     }
 
+    pub fn ff_pitch(&self) -> bool {
+        self.state.ff_pitch
+    }
+
     fn gba_shaders(&self) -> &'static [Shader] {
         let (w, h) = self.panel;
         if w > 0 && w * 2 == h * 3 {
@@ -6601,6 +6607,7 @@ impl App {
             | QuickRow::Rewind
             | QuickRow::FastForward
             | QuickRow::FastForwardSound
+            | QuickRow::FastForwardPitch
             | QuickRow::GbaColourCorrection
             | QuickRow::GbColourCorrection
             | QuickRow::GbcColourCorrection
@@ -6860,6 +6867,7 @@ impl App {
                 s.ff_speed = to;
             }
             QuickRow::FastForwardSound => s.ff_sound = !s.ff_sound,
+            QuickRow::FastForwardPitch => s.ff_pitch = !s.ff_pitch,
             QuickRow::GbaColourCorrection => {
                 s.colour_correction_gba = !s.colour_correction_gba;
                 self.colour_pending = Some(self.colour_correction());

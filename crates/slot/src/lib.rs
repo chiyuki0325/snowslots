@@ -57,6 +57,7 @@ pub mod overlay;
 pub mod pacer;
 pub mod panel_turn;
 pub mod persist;
+pub mod pitch;
 pub mod prefetch;
 pub mod print_scene;
 pub mod resample;

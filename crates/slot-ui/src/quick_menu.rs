@@ -11,6 +11,7 @@ use slot_store::{CarouselAction, GameButton, Shortcut};
 pub enum QuickRow {
     FastForward,
     FastForwardSound,
+    FastForwardPitch,
     Screen,
     Rumble,
     DateTime,
@@ -149,9 +150,10 @@ pub enum QuickRow {
 }
 
 impl QuickRow {
-    pub const ALL: [QuickRow; 135 + cfg!(feature = "nds") as usize] = [
+    pub const ALL: [QuickRow; 136 + cfg!(feature = "nds") as usize] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
+        QuickRow::FastForwardPitch,
         QuickRow::Screen,
         QuickRow::Rumble,
         QuickRow::DateTime,
@@ -451,9 +453,10 @@ impl QuickRow {
         QuickRow::GbStretch,
     ];
 
-    pub const GAME: [QuickRow; 7] = [
+    pub const GAME: [QuickRow; 8] = [
         QuickRow::FastForward,
         QuickRow::FastForwardSound,
+        QuickRow::FastForwardPitch,
         QuickRow::Rewind,
         QuickRow::Rumble,
         QuickRow::LeftStick,
@@ -535,6 +538,7 @@ impl QuickRow {
             | QuickRow::GbStretch => &QuickRow::SCREEN_GB,
             QuickRow::FastForward
             | QuickRow::FastForwardSound
+            | QuickRow::FastForwardPitch
             | QuickRow::Rewind
             | QuickRow::Rumble
             | QuickRow::LeftStick
@@ -689,6 +693,7 @@ impl QuickRow {
         match self {
             QuickRow::FastForward => "快速前进",
             QuickRow::FastForwardSound => "快进声音",
+            QuickRow::FastForwardPitch => "快进保音高",
             QuickRow::Screen => "屏幕",
             QuickRow::Rumble => "震动",
             QuickRow::LeftStick => "左摇杆模拟方向键",

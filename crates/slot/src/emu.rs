@@ -13,6 +13,7 @@ use crate::drc::{drc_ratio, drc_target};
 use crate::frames::{FrameRef, Frames};
 use crate::link_state;
 use crate::persist::Snapshot;
+use crate::pitch::PitchStretch;
 use crate::resample::Resampler;
 use crate::rewind::{RewindThread, REWIND_BYTES};
 
@@ -102,6 +103,7 @@ struct Shared {
     volume: AtomicU8,
     fast_quarters: AtomicU32,
     ff_sound: AtomicBool,
+    ff_pitch: AtomicBool,
     published: AtomicU64,
     cuts: AtomicU64,
     resume_refused: AtomicBool,
@@ -206,6 +208,7 @@ impl EmuHandle {
             volume: AtomicU8::new(100),
             fast_quarters: AtomicU32::new(FAST_STEPS * 4),
             ff_sound: AtomicBool::new(false),
+            ff_pitch: AtomicBool::new(false),
             published: AtomicU64::new(0),
             cuts: AtomicU64::new(0),
             resume_refused: AtomicBool::new(false),
@@ -415,6 +418,14 @@ impl EmuHandle {
 
     pub fn ff_sound(&self) -> bool {
         self.shared.ff_sound.load(Ordering::Relaxed)
+    }
+
+    pub fn set_ff_pitch(&self, on: bool) {
+        self.shared.ff_pitch.store(on, Ordering::Relaxed);
+    }
+
+    pub fn ff_pitch(&self) -> bool {
+        self.shared.ff_pitch.load(Ordering::Relaxed)
     }
 
     pub fn set_rewinding(&self, on: bool) {
@@ -637,6 +648,10 @@ impl Worker {
         eprintln!("slot: emu: ready at {:.1} ms", crate::boot_time::ms());
 
         let mut out = Vec::new();
+        let mut stretched = Vec::new();
+        let mut pitch = PitchStretch::default();
+        let mut pitch_active = false;
+        let mut pitch_cut = self.shared.cuts.load(Ordering::Relaxed);
         let mut gated = (false, false);
         let rewind = RewindThread::spawn(REWIND_BYTES);
         let mut since_snapshot = 0;
@@ -710,6 +725,16 @@ impl Worker {
             self.shared.observed.store(speed as u8, Ordering::Release);
             let ff_sound = self.shared.ff_sound.load(Ordering::Relaxed);
             let rewinding = speed != Speed::Paused && self.shared.rewind.load(Ordering::Relaxed);
+            let pitch_on = speed == Speed::Fast
+                && ff_sound
+                && !rewinding
+                && self.shared.ff_pitch.load(Ordering::Relaxed);
+            let cut = self.shared.cuts.load(Ordering::Relaxed);
+            if pitch_on != pitch_active || cut != pitch_cut {
+                pitch.reset();
+                pitch_active = pitch_on;
+                pitch_cut = cut;
+            }
             let gate = (
                 speed == Speed::Fast && !ff_sound,
                 speed == Speed::Paused || rewinding,
@@ -904,10 +929,17 @@ impl Worker {
                             / PRESENT.as_nanos() as f64;
                     }
                     let base = if lock { scale } else { 1.0 };
+                    let source = if pitch_on {
+                        pitch.process(&audio, ran, &mut stretched);
+                        stretched.as_slice()
+                    } else {
+                        audio.as_slice()
+                    };
                     resampler.set_ratio(
-                        drc_ratio(queued, target) * base * f64::from(span) / f64::from(ran),
+                        drc_ratio(queued, target) * base * f64::from(span)
+                            / if pitch_on { 1.0 } else { f64::from(ran) },
                     );
-                    resampler.process(&audio, &mut out);
+                    resampler.process(source, &mut out);
                     crate::audio::volume::apply(
                         &mut out,
                         self.shared.volume.load(Ordering::Relaxed),

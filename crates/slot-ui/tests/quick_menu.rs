@@ -163,6 +163,7 @@ fn the_rows_run_in_the_order_the_user_chose() {
         [
             "快速前进",
             "快进声音",
+            "快进保音高",
             "倒带",
             "震动",
             "左摇杆模拟方向键",
